@@ -1,0 +1,41 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Album {
+  id             String      @id @default(uuid())
+  slug           String      @unique
+  title          String
+  driveFolderId  String
+  password       String?
+  expiresAt      DateTime?
+  logoUrl        String?     // Can store a base64 string or public URL
+  bannerUrl      String?     // Can store a base64 string or public URL
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  selections     Selection[]
+}
+
+model Selection {
+  id              String   @id @default(uuid())
+  albumId         String
+  album           Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  clientSessionId String   // Unique session ID for each client
+  photoId         String   // Google Drive File ID
+  photoName       String   // Google Drive File Name
+  isFavorite      Boolean  @default(false) // Heart
+  isTicked        Boolean  @default(false) // Checkbox/Tick
+  colorFlag       String?  // flag color: "red" | "yellow" | "green" | "blue" | null
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([albumId, clientSessionId, photoId])
+}
