@@ -679,7 +679,7 @@ export default function AdminPage() {
                                 {sels.map((sel: any) => (
                                   <div key={sel.id} className="relative aspect-square rounded-lg border border-zinc-100 overflow-hidden bg-zinc-50 group">
                                     <img
-                                      src={`/api/drive/image?fileId=${sel.photoId}`}
+                                      src={`https://drive.google.com/thumbnail?id=${sel.photoId}&w=400&sz=w400`}
                                       alt={sel.photoName}
                                       className="h-full w-full object-cover"
                                     />
