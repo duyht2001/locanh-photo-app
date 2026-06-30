@@ -181,7 +181,7 @@ export default function Lightbox({ photo, photos, onClose, onSelect, onNavigate 
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.25 }}
-              src={`https://drive.google.com/thumbnail?id=${photo.id}&w=1600&sz=w1600`}
+              src={`https://lh3.googleusercontent.com/d/${photo.id}=w1600`}
               alt={photo.name}
               className="max-h-[80vh] max-w-[85vw] rounded object-contain shadow-2xl"
             />

@@ -679,7 +679,7 @@ export default function AdminPage() {
                                 {sels.map((sel: any) => (
                                   <div key={sel.id} className="relative aspect-square rounded-lg border border-zinc-100 overflow-hidden bg-zinc-50 group">
                                     <img
-                                      src={`https://drive.google.com/thumbnail?id=${sel.photoId}&w=400&sz=w400`}
+                                      src={`https://lh3.googleusercontent.com/d/${sel.photoId}=w400`}
                                       alt={sel.photoName}
                                       className="h-full w-full object-cover"
                                     />
@@ -1111,9 +1111,9 @@ export default function AdminPage() {
                   {showFormPhotoSelector && formPhotos.length > 0 && (
                     <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-1 bg-white border border-zinc-100 rounded-lg animate-in fade-in duration-200">
                       {formPhotos.map((photo) => {
-                        const previewUrl = `https://drive.google.com/thumbnail?id=${photo.id}&w=220&sz=w220`;
-                        const logoUrl = `https://drive.google.com/thumbnail?id=${photo.id}&w=600&sz=w600`;
-                        const bannerUrl = `https://drive.google.com/thumbnail?id=${photo.id}&w=1200&sz=w1200`;
+                        const previewUrl = `https://lh3.googleusercontent.com/d/${photo.id}=w220`;
+                        const logoUrl = `https://lh3.googleusercontent.com/d/${photo.id}=w600`;
+                        const bannerUrl = `https://lh3.googleusercontent.com/d/${photo.id}=w1200`;
                         return (
                           <div key={photo.id} className="relative aspect-square rounded-md overflow-hidden border border-zinc-100 group bg-zinc-50">
                             <img src={previewUrl} className="h-full w-full object-cover" alt="" />
