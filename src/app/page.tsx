@@ -4,13 +4,13 @@ import React, { useState } from "react";
 import { Camera, ArrowRight, Image as ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// Pre-curated high-quality romantic/wedding portfolio images for the infinite marquee
+// Pre-curated active high-quality romantic/wedding portfolio images for the infinite marquee
 const portfolioPhotos = [
   "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1519225495810-7512c696505a?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?w=600&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1520854221256-174b1ec353f3?w=600&auto=format&fit=crop&q=80",
+  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=600&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?w=600&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
@@ -94,7 +94,7 @@ export default function Home() {
             <div className="rounded-lg bg-white p-1.5 text-black shadow-sm">
               <Camera className="h-4 w-4 stroke-[2.5]" />
             </div>
-            <span className="text-sm font-bold tracking-widest text-white font-serif">LOCANH</span>
+            <span className="text-sm font-bold tracking-widest text-white font-sans">LOCANH</span>
           </div>
         </div>
       </header>
@@ -110,7 +110,7 @@ export default function Home() {
 
           {/* Heading */}
           <div className="space-y-4">
-            <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl font-serif bg-gradient-to-b from-white via-zinc-100 to-zinc-400 bg-clip-text text-transparent leading-none">
+            <h1 className="text-4xl font-extrabold tracking-normal sm:text-6xl font-sans bg-gradient-to-b from-white via-zinc-100 to-zinc-400 bg-clip-text text-transparent leading-tight">
               Lựa chọn khoảnh khắc <br />
               đẹp nhất của bạn.
             </h1>
