@@ -6,9 +6,10 @@ interface PhotoCardProps {
   photo: Photo;
   onSelect: (photoId: string, photoName: string, action: "favorite" | "tick" | "flag", value: any) => void;
   onImageClick: () => void;
+  allowDownloads?: boolean;
 }
 
-export default function PhotoCard({ photo, onSelect, onImageClick }: PhotoCardProps) {
+export default function PhotoCard({ photo, onSelect, onImageClick, allowDownloads = true }: PhotoCardProps) {
   const [showFlagMenu, setShowFlagMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -72,16 +73,18 @@ export default function PhotoCard({ photo, onSelect, onImageClick }: PhotoCardPr
         <div className="flex items-center gap-1.5 shrink-0 relative">
           
           {/* Download Button */}
-          <a
-            href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors duration-200 cursor-pointer"
-            title="Tải ảnh gốc"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Download className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
-          </a>
+          {allowDownloads && (
+            <a
+              href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors duration-200 cursor-pointer"
+              title="Tải ảnh gốc"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Download className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
+            </a>
+          )}
 
           {/* Flag Picker Dropdown */}
           <div className="relative">

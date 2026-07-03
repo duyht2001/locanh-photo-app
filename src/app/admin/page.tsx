@@ -45,6 +45,7 @@ export default function AdminPage() {
     expiresAt: "",
     logoUrl: "",
     bannerUrl: "",
+    allowDownloads: true,
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -354,6 +355,7 @@ export default function AdminPage() {
       expiresAt: "",
       logoUrl: "",
       bannerUrl: "",
+      allowDownloads: true,
     });
     setFormError(null);
     setShowForm(true);
@@ -369,6 +371,7 @@ export default function AdminPage() {
       expiresAt: album.expiresAt ? new Date(album.expiresAt).toISOString().split("T")[0] : "",
       logoUrl: album.logoUrl || "",
       bannerUrl: album.bannerUrl || "",
+      allowDownloads: album.allowDownloads !== undefined ? album.allowDownloads : true,
     });
     setFormError(null);
     setShowForm(true);
@@ -1151,6 +1154,20 @@ export default function AdminPage() {
                     className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-xs outline-none focus:border-black"
                   />
                 </div>
+              </div>
+
+              {/* Allow Downloads Checkbox Options */}
+              <div className="flex items-center gap-2.5 bg-zinc-50 border border-zinc-150/60 p-3.5 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="allowDownloads"
+                  checked={formData.allowDownloads}
+                  onChange={(e) => setFormData({ ...formData, allowDownloads: e.target.checked })}
+                  className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
+                />
+                <label htmlFor="allowDownloads" className="text-xs font-bold text-zinc-700 cursor-pointer select-none">
+                  Cho phép khách hàng tải ảnh xuống thiết bị
+                </label>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

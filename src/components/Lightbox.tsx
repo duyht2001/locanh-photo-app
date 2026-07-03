@@ -9,9 +9,10 @@ interface LightboxProps {
   onClose: () => void;
   onSelect: (photoId: string, photoName: string, action: "favorite" | "tick" | "flag", value: any) => void;
   onNavigate: (index: number) => void;
+  allowDownloads?: boolean;
 }
 
-export default function Lightbox({ photo, photos, onClose, onSelect, onNavigate }: LightboxProps) {
+export default function Lightbox({ photo, photos, onClose, onSelect, onNavigate, allowDownloads = true }: LightboxProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showFlagMenu, setShowFlagMenu] = useState(false);
   const currentIndex = photos.findIndex((p) => p.id === photo.id);
@@ -140,17 +141,20 @@ export default function Lightbox({ photo, photos, onClose, onSelect, onNavigate 
             </button>
 
             {/* Download Button */}
-            <a
-              href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-              title="Tải ảnh gốc"
-            >
-              <Download className="h-5 w-5" />
-            </a>
-
-            <div className="h-5 w-[1px] bg-zinc-700/60" />
+            {allowDownloads && (
+              <>
+                <a
+                  href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  title="Tải ảnh gốc"
+                >
+                  <Download className="h-5 w-5" />
+                </a>
+                <div className="h-5 w-[1px] bg-zinc-700/60" />
+              </>
+            )}
 
             {/* Info toggle */}
             <button

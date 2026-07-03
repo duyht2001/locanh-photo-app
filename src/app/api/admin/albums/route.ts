@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, driveFolderId, password, expiresAt, logoUrl, bannerUrl } = body;
+    const { title, driveFolderId, password, expiresAt, logoUrl, bannerUrl, allowDownloads } = body;
 
     if (!title || !driveFolderId) {
       return NextResponse.json(
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         logoUrl: logoUrl || null,
         bannerUrl: bannerUrl || null,
+        allowDownloads: allowDownloads !== undefined ? !!allowDownloads : true,
       },
     });
 
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, title, driveFolderId, password, expiresAt, logoUrl, bannerUrl } = body;
+    const { id, title, driveFolderId, password, expiresAt, logoUrl, bannerUrl, allowDownloads } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Album ID is required for update." }, { status: 400 });
@@ -145,6 +146,7 @@ export async function PUT(request: NextRequest) {
         expiresAt: expiresAt !== undefined ? (expiresAt ? new Date(expiresAt) : null) : existing.expiresAt,
         logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
         bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
+        allowDownloads: allowDownloads !== undefined ? !!allowDownloads : existing.allowDownloads,
       },
     });
 

@@ -9,11 +9,12 @@ interface GalleryProps {
   initialPhotos: Photo[];
   onSelect: (photoId: string, photoName: string, action: "favorite" | "tick" | "flag", value: any) => void;
   albumTitle: string;
+  allowDownloads?: boolean;
 }
 
 type FilterType = "all" | "selected" | "unselected" | "favorite" | "ticked" | "flag-red" | "flag-yellow" | "flag-green" | "flag-blue";
 
-export default function Gallery({ initialPhotos, onSelect, albumTitle }: GalleryProps) {
+export default function Gallery({ initialPhotos, onSelect, albumTitle, allowDownloads = true }: GalleryProps) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -318,6 +319,7 @@ export default function Gallery({ initialPhotos, onSelect, albumTitle }: Gallery
               key={photo.id}
               photo={photo}
               onSelect={handleSelect}
+              allowDownloads={allowDownloads}
               onImageClick={() => {
                 // Determine absolute index of this image in the filtered list
                 setActivePhotoIndex(index);
@@ -355,6 +357,7 @@ export default function Gallery({ initialPhotos, onSelect, albumTitle }: Gallery
           photos={filteredPhotos}
           onClose={() => setActivePhotoIndex(null)}
           onSelect={handleSelect}
+          allowDownloads={allowDownloads}
           onNavigate={(index) => setActivePhotoIndex(index)}
         />
       )}

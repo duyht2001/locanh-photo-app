@@ -292,6 +292,7 @@ export default function AlbumGuestPage({ params }: PageProps) {
         initialPhotos={photos}
         onSelect={handlePhotoSelect}
         albumTitle={album.title}
+        allowDownloads={album.allowDownloads}
       />
     </div>
   );

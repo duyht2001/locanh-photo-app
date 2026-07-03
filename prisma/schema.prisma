@@ -20,6 +20,7 @@ model Album {
   expiresAt      DateTime?
   logoUrl        String?     // Can store a base64 string or public URL
   bannerUrl      String?     // Can store a base64 string or public URL
+  allowDownloads Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   selections     Selection[]

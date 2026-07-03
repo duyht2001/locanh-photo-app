@@ -97,6 +97,7 @@ export async function GET(
       expiresAt: album.expiresAt,
       logoUrl: album.logoUrl,
       bannerUrl: album.bannerUrl,
+      allowDownloads: album.allowDownloads,
       isPasswordProtected: !!album.password,
     };
 
