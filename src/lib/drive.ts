@@ -22,7 +22,7 @@ export function getDriveClient() {
     const auth = new google.auth.JWT({
       email: credentials.client_email,
       key: credentials.private_key,
-      scopes: ["https://www.googleapis.com/auth/drive.readonly"]
+      scopes: ["https://www.googleapis.com/auth/drive"]
     });
 
     return google.drive({ version: "v3", auth });
@@ -125,3 +125,62 @@ export async function getFileStream(fileId: string) {
     throw new Error(`Failed to stream file from Google Drive: ${error.message}`);
   }
 }
+
+// Create a new subfolder inside a parent folder on Google Drive
+export async function createSubfolder(parentFolderId: string, folderName: string): Promise<string> {
+  const drive = getDriveClient();
+  try {
+    const fileMetadata = {
+      name: folderName,
+      mimeType: "application/vnd.google-apps.folder",
+      parents: [parentFolderId],
+    };
+    
+    const response = await drive.files.create({
+      requestBody: fileMetadata,
+      fields: "id, name",
+      supportsAllDrives: true,
+    });
+    
+    if (!response.data.id) {
+      throw new Error("Drive API did not return folder ID.");
+    }
+    
+    return response.data.id;
+  } catch (error: any) {
+    console.error("Error creating folder on Google Drive:", error);
+    throw new Error(`Failed to create subfolder: ${error.message}`);
+  }
+}
+
+// Copy a file from Google Drive into a new target folder
+export async function copyFileToFolder(fileId: string, destinationFolderId: string): Promise<string> {
+  const drive = getDriveClient();
+  try {
+    // Fetch original file metadata to preserve its name
+    const fileInfo = await drive.files.get({
+      fileId: fileId,
+      fields: "name",
+      supportsAllDrives: true,
+    });
+    
+    const response = await drive.files.copy({
+      fileId: fileId,
+      requestBody: {
+        parents: [destinationFolderId],
+        name: fileInfo.data.name,
+      },
+      supportsAllDrives: true,
+    });
+    
+    if (!response.data.id) {
+      throw new Error("Drive API did not return copied file ID.");
+    }
+    
+    return response.data.id;
+  } catch (error: any) {
+    console.error(`Error copying file ${fileId}:`, error);
+    throw new Error(`Failed to copy file: ${error.message}`);
+  }
+}
+

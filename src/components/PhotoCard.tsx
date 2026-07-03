@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Heart, Check, Flag, Maximize2 } from "lucide-react";
+import { Heart, Check, Flag, Maximize2, Download } from "lucide-react";
 import { Photo } from "@/types";
 
 interface PhotoCardProps {
@@ -71,6 +71,18 @@ export default function PhotoCard({ photo, onSelect, onImageClick }: PhotoCardPr
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 shrink-0 relative">
           
+          {/* Download Button */}
+          <a
+            href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors duration-200 cursor-pointer"
+            title="Tải ảnh gốc"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Download className="h-4 w-4 transition-transform duration-200 hover:scale-110" />
+          </a>
+
           {/* Flag Picker Dropdown */}
           <div className="relative">
             <button

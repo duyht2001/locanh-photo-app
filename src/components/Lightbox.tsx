@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, ChevronLeft, ChevronRight, Heart, Check, Flag, Info } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Heart, Check, Flag, Info, Download } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Photo } from "@/types";
 
@@ -138,6 +138,17 @@ export default function Lightbox({ photo, photos, onClose, onSelect, onNavigate 
               <Check className={`h-4 w-4 stroke-[3.5] ${photo.isTicked ? "block" : "hidden"}`} />
               <span>{photo.isTicked ? "Đã chọn" : "Chọn ảnh"}</span>
             </button>
+
+            {/* Download Button */}
+            <a
+              href={`https://drive.google.com/uc?export=download&id=${photo.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full p-2 text-zinc-400 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+              title="Tải ảnh gốc"
+            >
+              <Download className="h-5 w-5" />
+            </a>
 
             <div className="h-5 w-[1px] bg-zinc-700/60" />
 

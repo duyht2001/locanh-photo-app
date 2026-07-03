@@ -18,7 +18,9 @@ import {
   Settings,
   HelpCircle,
   FileText,
-  Heart
+  Heart,
+  FolderPlus,
+  Loader2
 } from "lucide-react";
 import { generateCSV, generateTXT, downloadFile, SelectionExportItem, formatDate } from "@/lib/utils";
 
@@ -49,6 +51,14 @@ export default function AdminPage() {
 
   // Utility states
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Drive organizing states
+  const [organizeModalOpen, setOrganizeModalOpen] = useState(false);
+  const [organizeSessionId, setOrganizeSessionId] = useState<string | null>(null);
+  const [organizeFolderName, setOrganizeFolderName] = useState("");
+  const [organizingDrive, setOrganizingDrive] = useState(false);
+  const [organizeResult, setOrganizeResult] = useState<any>(null);
+  const [organizeError, setOrganizeError] = useState<string | null>(null);
 
   // Local Copy Tool States
   const [sourceDirName, setSourceDirName] = useState<string>("");
@@ -277,6 +287,61 @@ export default function AdminPage() {
   const handleSelectAlbumForDetail = (album: any) => {
     setSelectedAlbum(album);
     fetchAlbumSelections(album.id);
+  };
+
+  // Open modal for organizing files on Google Drive
+  const handleOpenOrganizeModal = (sessionId: string) => {
+    if (!selectedAlbum) return;
+    
+    setOrganizeSessionId(sessionId);
+    setOrganizeResult(null);
+    setOrganizeError(null);
+    setOrganizingDrive(false);
+    
+    // Suggest default folder name, removing characters Google Drive/OS might find problematic
+    const cleanAlbumTitle = selectedAlbum.title.replace(/[\\\/*?:"<>|]/g, "");
+    const dateStr = new Date().toLocaleDateString("vi-VN").replace(/\//g, "-");
+    
+    if (sessionId === "all") {
+      setOrganizeFolderName(`${cleanAlbumTitle} - Anh Da Chon - Tat Ca - ${dateStr}`);
+    } else {
+      const shortSess = sessionId.substring(4, 10).toUpperCase();
+      setOrganizeFolderName(`${cleanAlbumTitle} - Anh Da Chon - Khach ${shortSess} - ${dateStr}`);
+    }
+    
+    setOrganizeModalOpen(true);
+  };
+
+  // Trigger Google Drive organization API
+  const handleExecuteOrganize = async () => {
+    if (!selectedAlbum || !organizeFolderName.trim()) return;
+    
+    setOrganizingDrive(true);
+    setOrganizeError(null);
+    setOrganizeResult(null);
+    
+    try {
+      const res = await fetch(`/api/admin/albums/${selectedAlbum.slug}/organize-drive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: organizeSessionId,
+          folderName: organizeFolderName.trim(),
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Gặp lỗi trong quá trình tạo thư mục và sao chép ảnh.");
+      }
+      
+      setOrganizeResult(data);
+    } catch (err: any) {
+      setOrganizeError(err.message || "Không thể kết nối đến máy chủ.");
+    } finally {
+      setOrganizingDrive(false);
+    }
   };
 
   // Form handlers
@@ -625,6 +690,13 @@ export default function AdminPage() {
                               <FileText className="h-3 w-3" />
                               <span>TXT</span>
                             </button>
+                            <button
+                              onClick={() => handleOpenOrganizeModal("all")}
+                              className="flex items-center gap-1 rounded-full border border-zinc-200 hover:border-black bg-white hover:bg-zinc-50 px-3 py-1.5 text-[10px] font-bold text-zinc-700 hover:text-black cursor-pointer transition-colors animate-pulse-slow"
+                            >
+                              <FolderPlus className="h-3.5 w-3.5 text-violet-500" />
+                              <span>Chép vào Drive</span>
+                            </button>
                           </div>
                         </div>
 
@@ -669,6 +741,14 @@ export default function AdminPage() {
                                       title="Xuất file TXT cho khách hàng này"
                                     >
                                       Xuất TXT
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenOrganizeModal(sessId)}
+                                      className="rounded border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 hover:text-black px-2.5 py-1 text-[10px] font-bold cursor-pointer flex items-center gap-1"
+                                      title="Tạo thư mục trên Drive và copy ảnh đã chọn của khách này vào"
+                                    >
+                                      <FolderPlus className="h-3 w-3 text-violet-500" />
+                                      <span>Lưu vào Drive</span>
                                     </button>
                                   </div>
                                 </div>
@@ -1161,6 +1241,124 @@ export default function AdminPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Google Drive Organize Modal */}
+      {organizeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-100 bg-white p-6 shadow-2xl space-y-4 animate-in scale-in duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5 text-violet-500" />
+                <h3 className="text-sm font-bold text-zinc-950">Sao chép ảnh vào Google Drive</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOrganizeModalOpen(false)}
+                disabled={organizingDrive}
+                className="text-zinc-400 hover:text-zinc-600 text-sm font-bold cursor-pointer disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Form & Loading State */}
+            {!organizeResult ? (
+              <div className="space-y-4">
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Hệ thống sẽ tự động tạo một thư mục con bên trong thư mục ảnh gốc của Album trên Google Drive, sau đó sao chép toàn bộ các ảnh được lựa chọn của phiên khách hàng này vào đó.
+                </p>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    Tên thư mục mới
+                  </label>
+                  <input
+                    type="text"
+                    disabled={organizingDrive}
+                    value={organizeFolderName}
+                    onChange={(e) => setOrganizeFolderName(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-xs outline-none focus:border-black disabled:bg-zinc-50"
+                    placeholder="Nhập tên thư mục"
+                  />
+                </div>
+
+                {organizeError && (
+                  <div className="bg-red-50 text-red-600 p-2.5 rounded-lg text-xs font-semibold leading-normal">
+                    ⚠️ {organizeError}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2.5 pt-2 border-t border-zinc-100">
+                  <button
+                    type="button"
+                    onClick={() => setOrganizeModalOpen(false)}
+                    disabled={organizingDrive}
+                    className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 cursor-pointer disabled:opacity-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteOrganize}
+                    disabled={organizingDrive || !organizeFolderName.trim()}
+                    className="flex items-center gap-1.5 rounded-lg bg-black hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400 text-white px-4 py-2 text-xs font-semibold cursor-pointer transition-colors"
+                  >
+                    {organizingDrive ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        <span>Đang xử lý...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderPlus className="h-3.5 w-3.5" />
+                        <span>Bắt đầu chép</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Success View
+              <div className="space-y-4 text-center py-2 animate-in fade-in duration-300">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Check className="h-6 w-6 stroke-[3]" />
+                </div>
+                
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-zinc-900">Sao chép ảnh hoàn tất!</h4>
+                  <p className="text-xs text-zinc-500">
+                    Đã tạo thư mục và chép thành công <span className="text-zinc-900 font-bold">{organizeResult.successCount}</span> ảnh.
+                  </p>
+                </div>
+
+                <div className="bg-zinc-50 border border-zinc-100 p-3 rounded-xl text-left space-y-1.5 text-xs">
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">Thư mục tạo ra:</p>
+                  <p className="font-semibold text-zinc-800 truncate">{organizeFolderName}</p>
+                </div>
+
+                <div className="flex flex-col gap-2 pt-2 border-t border-zinc-100">
+                  <a
+                    href={organizeResult.driveLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1.5 rounded-lg bg-black hover:bg-zinc-800 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer transition-colors"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    <span>Mở thư mục trên Google Drive</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setOrganizeModalOpen(false)}
+                    className="rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 px-4 py-2 text-xs font-semibold cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
