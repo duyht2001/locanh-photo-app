@@ -4,7 +4,16 @@ export function useSessionId() {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Attempt to retrieve existing session ID from localStorage
+    // 1. First, check if session ID is provided in the URL query string (e.g. ?session=usr_xyz)
+    const params = new URLSearchParams(window.location.search);
+    const urlSessionId = params.get("session");
+    
+    if (urlSessionId) {
+      setSessionId(urlSessionId);
+      return;
+    }
+
+    // 2. Fallback to localStorage
     let id = localStorage.getItem("locanh_session_id");
     
     if (!id) {

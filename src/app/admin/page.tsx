@@ -711,8 +711,16 @@ export default function AdminPage() {
                               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-zinc-50/50 p-2.5 rounded-lg">
                                 <div className="flex items-center gap-2">
                                   <User className="h-4 w-4 text-zinc-400" />
-                                  <span className="text-xs font-bold text-zinc-800">
-                                    Khách hàng (Session: <span className="font-mono text-[10px]">{sessId.substring(4, 12)}...</span>)
+                                  <span className="text-xs font-bold text-zinc-800 flex items-center gap-1.5">
+                                    <span>Khách hàng (Session: <span className="font-mono text-[10px]">{sessId.substring(4, 12)}...</span>)</span>
+                                    <Link
+                                      href={`/album/${selectedAlbum.slug}?session=${sessId}`}
+                                      target="_blank"
+                                      className="text-zinc-400 hover:text-black transition-colors"
+                                      title="Xem trang khách của session này"
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" />
+                                    </Link>
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-3">
