@@ -1,0 +1,19 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Chạy tự động lúc 03:00 UTC vào các ngày chẵn hàng tuần (mỗi 2-3 ngày)
+    - cron: '0 3 */2 * *'
+  workflow_dispatch: # Cho phép bấm chạy thủ công trên GitHub Actions
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database via REST API
+        run: |
+          echo "Sending keep-alive request to Supabase..."
+          curl -s -f -X GET 'https://cdildcjuzjupwvqieirv.supabase.co/rest/v1/Album?select=id&limit=1' \
+            -H "apikey: sb_publishable_A6JCdUsUSL5G1uk-HFqbKw_zzhDgb0V" \
+            -H "Authorization: Bearer sb_publishable_A6JCdUsUSL5G1uk-HFqbKw_zzhDgb0V" || echo "Ping completed with status: $?"
+          echo "Supabase ping finished successfully."
