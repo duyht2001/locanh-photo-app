@@ -133,7 +133,11 @@ export async function POST(request: NextRequest) {
         ? Math.max(0, parseInt(String(maxSelections), 10)) || null
         : null;
 
+    const now = new Date().toISOString();
+    const albumId = `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
     const albumData: any = {
+      id: albumId,
       title,
       slug,
       driveFolderId: cleanFolderId,
@@ -143,16 +147,15 @@ export async function POST(request: NextRequest) {
       bannerUrl: bannerUrl || null,
       allowDownloads: allowDownloads !== undefined ? !!allowDownloads : true,
       maxSelections: parsedMaxSelections,
+      createdAt: now,
+      updatedAt: now,
     };
 
-    // Save locally
-    const localAlbum = saveCustomAlbum(albumData);
-
-    // Save to Supabase
+    // 3. Save to Supabase FIRST
+    let supaInserted: any = null;
     try {
-      const now = new Date().toISOString();
       const supaPayload: any = {
-        id: localAlbum.id,
+        id: albumId,
         title: albumData.title,
         slug: albumData.slug,
         driveFolderId: albumData.driveFolderId,
@@ -172,13 +175,31 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (!supaErr && inserted) {
-        return NextResponse.json({ ...inserted, maxSelections: parsedMaxSelections }, { status: 201 });
+        supaInserted = inserted;
+      } else if (supaErr) {
+        console.warn("Supabase insert error:", supaErr.message);
       }
     } catch (e) {
-      console.warn("Supabase insert error, saved locally:", e);
+      console.warn("Supabase insert exception:", e);
     }
 
-    return NextResponse.json(localAlbum, { status: 201 });
+    // 4. Save locally/in-memory (safe against EROFS)
+    let localAlbum: any = null;
+    try {
+      localAlbum = saveCustomAlbum(albumData);
+    } catch (e) {
+      console.warn("Local album save error (safe fallback):", e);
+    }
+
+    if (supaInserted) {
+      return NextResponse.json({ ...supaInserted, maxSelections: parsedMaxSelections }, { status: 201 });
+    }
+
+    if (localAlbum) {
+      return NextResponse.json(localAlbum, { status: 201 });
+    }
+
+    return NextResponse.json(albumData, { status: 201 });
   } catch (error: unknown) {
     console.error("POST album error:", error);
     const message = error instanceof Error ? error.message : String(error);
@@ -226,19 +247,8 @@ export async function PUT(request: NextRequest) {
             : null)
         : undefined;
 
-    // Update locally
-    const updated = updateCustomAlbum(id, {
-      ...(title !== undefined ? { title } : {}),
-      ...(cleanFolderId !== undefined ? { driveFolderId: cleanFolderId } : {}),
-      ...(password !== undefined ? { password: password || null } : {}),
-      ...(expiresAt !== undefined ? { expiresAt: expiresAt || null } : {}),
-      ...(logoUrl !== undefined ? { logoUrl } : {}),
-      ...(bannerUrl !== undefined ? { bannerUrl } : {}),
-      ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
-      ...(parsedMaxSelections !== undefined ? { maxSelections: parsedMaxSelections } : {}),
-    });
-
-    // Update in Supabase
+    // Update in Supabase FIRST
+    let supaUpdated: any = null;
     try {
       const supaUpdates: any = {
         ...(title !== undefined ? { title } : {}),
@@ -251,9 +261,42 @@ export async function PUT(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       };
 
-      await supabase.from("Album").update(supaUpdates).eq("id", id);
+      const { data, error } = await supabase
+        .from("Album")
+        .update(supaUpdates)
+        .eq("id", id)
+        .select()
+        .maybeSingle();
+
+      if (!error && data) {
+        supaUpdated = data;
+      }
     } catch (e) {
       console.warn("Supabase update error:", e);
+    }
+
+    // Update locally/in-memory (safe against EROFS)
+    let updated: any = null;
+    try {
+      updated = updateCustomAlbum(id, {
+        ...(title !== undefined ? { title } : {}),
+        ...(cleanFolderId !== undefined ? { driveFolderId: cleanFolderId } : {}),
+        ...(password !== undefined ? { password: password || null } : {}),
+        ...(expiresAt !== undefined ? { expiresAt: expiresAt || null } : {}),
+        ...(logoUrl !== undefined ? { logoUrl } : {}),
+        ...(bannerUrl !== undefined ? { bannerUrl } : {}),
+        ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
+        ...(parsedMaxSelections !== undefined ? { maxSelections: parsedMaxSelections } : {}),
+      });
+    } catch (e) {
+      console.warn("Local update error:", e);
+    }
+
+    if (supaUpdated) {
+      return NextResponse.json({
+        ...supaUpdated,
+        maxSelections: parsedMaxSelections ?? updated?.maxSelections ?? null,
+      });
     }
 
     if (updated) {
@@ -293,7 +336,12 @@ export async function DELETE(request: NextRequest) {
       console.warn("Supabase delete error:", e);
     }
 
-    deleteCustomAlbum(id);
+    try {
+      deleteCustomAlbum(id);
+    } catch (e) {
+      console.warn("Local delete error:", e);
+    }
+
     return NextResponse.json({ message: "Xóa album thành công." });
   } catch (error: unknown) {
     console.error("DELETE album error:", error);

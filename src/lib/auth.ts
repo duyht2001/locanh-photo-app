@@ -7,7 +7,15 @@ const AUTH_COOKIE_NAME = "to_admin_token";
 const SECRET_KEY = process.env.ADMIN_JWT_SECRET || "tostudio-super-secret-key-2026";
 const CREDENTIALS_FILE = path.join(process.cwd(), "prisma", "admin-credentials.json");
 
+let inMemoryAdminPassword: string | null = null;
+
 export function getAdminCredentials() {
+  if (inMemoryAdminPassword) {
+    return {
+      username: process.env.ADMIN_USERNAME || "admin",
+      password: inMemoryAdminPassword,
+    };
+  }
   try {
     if (fs.existsSync(CREDENTIALS_FILE)) {
       let content = fs.readFileSync(CREDENTIALS_FILE, "utf-8");
@@ -21,7 +29,7 @@ export function getAdminCredentials() {
       }
     }
   } catch (err) {
-    console.error("Error reading admin credentials file:", err);
+    // Ignore read errors
   }
 
   const username = process.env.ADMIN_USERNAME || "admin";
@@ -30,13 +38,18 @@ export function getAdminCredentials() {
 }
 
 export function updateAdminPassword(newPassword: string) {
+  inMemoryAdminPassword = newPassword;
   const current = getAdminCredentials();
   const data = {
     username: current.username,
     password: newPassword,
     updatedAt: new Date().toISOString(),
   };
-  fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  try {
+    fs.writeFileSync(CREDENTIALS_FILE, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    // Gracefully ignore EROFS in serverless environments like Vercel
+  }
   return data;
 }
 

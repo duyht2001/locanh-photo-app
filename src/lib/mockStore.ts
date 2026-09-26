@@ -17,26 +17,34 @@ export interface LocalSelection {
 const SELECTIONS_FILE = path.join(process.cwd(), "prisma", "local-selections.json");
 const CUSTOM_ALBUMS_FILE = path.join(process.cwd(), "prisma", "custom-albums.json");
 
+let memorySelectionsStore: Record<string, Record<string, Record<string, LocalSelection>>> | null = null;
+
 function loadSelectionsStore(): Record<string, Record<string, Record<string, LocalSelection>>> {
+  if (memorySelectionsStore !== null) {
+    return memorySelectionsStore;
+  }
   try {
     if (fs.existsSync(SELECTIONS_FILE)) {
       let content = fs.readFileSync(SELECTIONS_FILE, "utf-8");
       if (content.charCodeAt(0) === 0xfeff) {
         content = content.slice(1);
       }
-      return JSON.parse(content);
+      memorySelectionsStore = JSON.parse(content);
+      return memorySelectionsStore || {};
     }
   } catch (err) {
-    console.error("Failed to load local selections store:", err);
+    // Ignore read errors
   }
-  return {};
+  memorySelectionsStore = {};
+  return memorySelectionsStore;
 }
 
 function saveSelectionsStore(data: Record<string, Record<string, Record<string, LocalSelection>>>) {
+  memorySelectionsStore = data;
   try {
     fs.writeFileSync(SELECTIONS_FILE, JSON.stringify(data, null, 2), "utf-8");
   } catch (err) {
-    console.error("Failed to save local selections store:", err);
+    // Gracefully ignore EROFS in serverless environments like Vercel
   }
 }
 
@@ -161,28 +169,35 @@ export function getSampleAlbumData(slug?: string) {
   return null;
 }
 
+let memoryCustomAlbums: any[] | null = null;
+
 export function getCustomAlbums(): any[] {
+  if (memoryCustomAlbums !== null) {
+    return memoryCustomAlbums;
+  }
   try {
     if (fs.existsSync(CUSTOM_ALBUMS_FILE)) {
       let content = fs.readFileSync(CUSTOM_ALBUMS_FILE, "utf-8");
       if (content.charCodeAt(0) === 0xfeff) {
         content = content.slice(1);
       }
-      return JSON.parse(content);
+      memoryCustomAlbums = JSON.parse(content);
+      return memoryCustomAlbums || [];
     }
   } catch (err) {
-    console.error("Failed to read custom albums:", err);
+    // Ignore read errors
   }
-  return [];
+  memoryCustomAlbums = [];
+  return memoryCustomAlbums;
 }
 
 export function saveCustomAlbum(albumData: any): any {
   const albums = getCustomAlbums();
   const existingIdx = albums.findIndex((a) => a.id === albumData.id || a.slug === albumData.slug);
+  let saved: any;
   if (existingIdx >= 0) {
     albums[existingIdx] = { ...albums[existingIdx], ...albumData, updatedAt: new Date().toISOString() };
-    fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(albums, null, 2), "utf-8");
-    return albums[existingIdx];
+    saved = albums[existingIdx];
   } else {
     const newAlbum = {
       id: albumData.id || `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -191,9 +206,15 @@ export function saveCustomAlbum(albumData: any): any {
       ...albumData,
     };
     albums.unshift(newAlbum);
-    fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(albums, null, 2), "utf-8");
-    return newAlbum;
+    saved = newAlbum;
   }
+  memoryCustomAlbums = albums;
+  try {
+    fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(albums, null, 2), "utf-8");
+  } catch (err) {
+    // Gracefully ignore EROFS in serverless environments like Vercel
+  }
+  return saved;
 }
 
 export function updateCustomAlbum(id: string, updates: any): any | null {
@@ -205,7 +226,12 @@ export function updateCustomAlbum(id: string, updates: any): any | null {
       ...updates,
       updatedAt: new Date().toISOString(),
     };
-    fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(albums, null, 2), "utf-8");
+    memoryCustomAlbums = albums;
+    try {
+      fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(albums, null, 2), "utf-8");
+    } catch (err) {
+      // Gracefully ignore EROFS in serverless environments
+    }
     return albums[idx];
   }
   return null;
@@ -215,7 +241,12 @@ export function deleteCustomAlbum(id: string): boolean {
   const albums = getCustomAlbums();
   const filtered = albums.filter((a) => a.id !== id);
   if (filtered.length !== albums.length) {
-    fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(filtered, null, 2), "utf-8");
+    memoryCustomAlbums = filtered;
+    try {
+      fs.writeFileSync(CUSTOM_ALBUMS_FILE, JSON.stringify(filtered, null, 2), "utf-8");
+    } catch (err) {
+      // Gracefully ignore EROFS in serverless environments
+    }
     return true;
   }
   return false;
