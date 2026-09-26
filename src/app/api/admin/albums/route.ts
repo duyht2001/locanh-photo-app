@@ -12,6 +12,11 @@ import {
   deleteCustomAlbum,
   getAllSelectionsForAlbum,
 } from "@/lib/mockStore";
+import {
+  extractMaxSelections,
+  cleanBannerUrl,
+  encodeBannerWithMaxSelections,
+} from "@/lib/albumHelper";
 
 function extractFolderId(input: string): string {
   const trimmed = input.trim();
@@ -43,9 +48,11 @@ export async function GET(request: NextRequest) {
     if (!error && supaAlbums) {
       const formatted = supaAlbums.map((a: any) => {
         const local = customMap.get(a.slug);
+        const maxSel = extractMaxSelections(a, local);
         return {
           ...a,
-          maxSelections: a.maxSelections ?? local?.maxSelections ?? null,
+          bannerUrl: cleanBannerUrl(a.bannerUrl),
+          maxSelections: maxSel,
           _count: {
             selections: Array.isArray(a.selections) ? a.selections.length : 0,
           },
@@ -136,6 +143,8 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const albumId = `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+    const encodedBanner = encodeBannerWithMaxSelections(bannerUrl, parsedMaxSelections);
+
     const albumData: any = {
       id: albumId,
       title,
@@ -144,7 +153,7 @@ export async function POST(request: NextRequest) {
       password: password || null,
       expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null,
       logoUrl: logoUrl || "/logo.jpg",
-      bannerUrl: bannerUrl || null,
+      bannerUrl: encodedBanner,
       allowDownloads: allowDownloads !== undefined ? !!allowDownloads : true,
       maxSelections: parsedMaxSelections,
       createdAt: now,
@@ -162,17 +171,29 @@ export async function POST(request: NextRequest) {
         password: albumData.password,
         expiresAt: albumData.expiresAt,
         logoUrl: albumData.logoUrl,
-        bannerUrl: albumData.bannerUrl,
+        bannerUrl: encodedBanner,
         allowDownloads: albumData.allowDownloads,
+        maxSelections: parsedMaxSelections,
         createdAt: now,
         updatedAt: now,
       };
 
-      const { data: inserted, error: supaErr } = await supabase
+      let { data: inserted, error: supaErr } = await supabase
         .from("Album")
         .upsert(supaPayload)
         .select()
         .single();
+
+      if (supaErr && supaErr.message && supaErr.message.includes("maxSelections")) {
+        delete supaPayload.maxSelections;
+        const retry = await supabase
+          .from("Album")
+          .upsert(supaPayload)
+          .select()
+          .single();
+        inserted = retry.data;
+        supaErr = retry.error;
+      }
 
       if (!supaErr && inserted) {
         supaInserted = inserted;
@@ -192,14 +213,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (supaInserted) {
-      return NextResponse.json({ ...supaInserted, maxSelections: parsedMaxSelections }, { status: 201 });
+      return NextResponse.json({
+        ...supaInserted,
+        bannerUrl: cleanBannerUrl(supaInserted.bannerUrl),
+        maxSelections: parsedMaxSelections,
+      }, { status: 201 });
     }
 
     if (localAlbum) {
-      return NextResponse.json(localAlbum, { status: 201 });
+      return NextResponse.json({
+        ...localAlbum,
+        bannerUrl: cleanBannerUrl(localAlbum.bannerUrl),
+      }, { status: 201 });
     }
 
-    return NextResponse.json(albumData, { status: 201 });
+    return NextResponse.json({
+      ...albumData,
+      bannerUrl: cleanBannerUrl(albumData.bannerUrl),
+    }, { status: 201 });
   } catch (error: unknown) {
     console.error("POST album error:", error);
     const message = error instanceof Error ? error.message : String(error);
@@ -247,6 +278,11 @@ export async function PUT(request: NextRequest) {
             : null)
         : undefined;
 
+    const encodedBanner =
+      bannerUrl !== undefined || parsedMaxSelections !== undefined
+        ? encodeBannerWithMaxSelections(bannerUrl, parsedMaxSelections)
+        : undefined;
+
     // Update in Supabase FIRST
     let supaUpdated: any = null;
     try {
@@ -256,17 +292,33 @@ export async function PUT(request: NextRequest) {
         ...(password !== undefined ? { password: password || null } : {}),
         ...(expiresAt !== undefined ? { expiresAt: expiresAt || null } : {}),
         ...(logoUrl !== undefined ? { logoUrl } : {}),
-        ...(bannerUrl !== undefined ? { bannerUrl } : {}),
+        ...(encodedBanner !== undefined ? { bannerUrl: encodedBanner } : {}),
         ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
+        ...(parsedMaxSelections !== undefined ? { maxSelections: parsedMaxSelections } : {}),
         updatedAt: new Date().toISOString(),
       };
 
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("Album")
         .update(supaUpdates)
         .eq("id", id)
         .select()
         .maybeSingle();
+
+      if (error && error.message && error.message.includes("maxSelections")) {
+        delete supaUpdates.maxSelections;
+        if (encodedBanner !== undefined) {
+          supaUpdates.bannerUrl = encodedBanner;
+        }
+        const retry = await supabase
+          .from("Album")
+          .update(supaUpdates)
+          .eq("id", id)
+          .select()
+          .maybeSingle();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (!error && data) {
         supaUpdated = data;
@@ -284,7 +336,7 @@ export async function PUT(request: NextRequest) {
         ...(password !== undefined ? { password: password || null } : {}),
         ...(expiresAt !== undefined ? { expiresAt: expiresAt || null } : {}),
         ...(logoUrl !== undefined ? { logoUrl } : {}),
-        ...(bannerUrl !== undefined ? { bannerUrl } : {}),
+        ...(encodedBanner !== undefined ? { bannerUrl: encodedBanner } : {}),
         ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
         ...(parsedMaxSelections !== undefined ? { maxSelections: parsedMaxSelections } : {}),
       });
@@ -295,12 +347,17 @@ export async function PUT(request: NextRequest) {
     if (supaUpdated) {
       return NextResponse.json({
         ...supaUpdated,
-        maxSelections: parsedMaxSelections ?? updated?.maxSelections ?? null,
+        bannerUrl: cleanBannerUrl(supaUpdated.bannerUrl),
+        maxSelections: parsedMaxSelections ?? extractMaxSelections(supaUpdated, updated),
       });
     }
 
     if (updated) {
-      return NextResponse.json(updated);
+      return NextResponse.json({
+        ...updated,
+        bannerUrl: cleanBannerUrl(updated.bannerUrl),
+        maxSelections: parsedMaxSelections ?? extractMaxSelections(updated),
+      });
     }
 
     return NextResponse.json({ error: "Không tìm thấy Album." }, { status: 404 });

@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { listImagesInFolder } from "@/lib/drive";
 import { supabase } from "@/lib/supabase";
 import { getSampleAlbumData, getLocalSelections, getAlbumBySlugOrId } from "@/lib/mockStore";
+import { extractMaxSelections, cleanBannerUrl } from "@/lib/albumHelper";
 
 export async function GET(
   request: NextRequest,
@@ -44,9 +45,8 @@ export async function GET(
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
 
-    // Merge maxSelections from local if Supabase doesn't have the column yet
     const localAlbum = getAlbumBySlugOrId(slug);
-    const maxSelections = album.maxSelections ?? localAlbum?.maxSelections ?? null;
+    const maxSelections = extractMaxSelections(album, localAlbum);
 
     // 2. Check Expiration
     if (album.expiresAt && new Date() > new Date(album.expiresAt) && !isAdmin) {
@@ -141,7 +141,7 @@ export async function GET(
       title: album.title,
       expiresAt: album.expiresAt,
       logoUrl: album.logoUrl || "/logo.jpg",
-      bannerUrl: album.bannerUrl,
+      bannerUrl: cleanBannerUrl(album.bannerUrl),
       allowDownloads: album.allowDownloads,
       maxSelections: maxSelections,
       isPasswordProtected: !!album.password,

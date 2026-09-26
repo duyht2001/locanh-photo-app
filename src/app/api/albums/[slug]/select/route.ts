@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { updateLocalSelection, getAlbumBySlugOrId } from "@/lib/mockStore";
+import { extractMaxSelections } from "@/lib/albumHelper";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(
@@ -47,7 +48,7 @@ export async function POST(
     }
 
     const localAlbum = getAlbumBySlugOrId(slug);
-    const maxLimit = album.maxSelections ?? localAlbum?.maxSelections ?? null;
+    const maxLimit = extractMaxSelections(album, localAlbum);
 
     // 2. Update local selection & check limit
     const localRes = updateLocalSelection(slug, sessionId, photoId, photoName, action, value, maxLimit);
