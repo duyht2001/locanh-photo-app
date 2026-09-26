@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import prisma from "@/lib/db";
 import { generateSlug } from "@/lib/utils";
 import { getFolderMetadata } from "@/lib/drive";
 import { verifyAdminAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import {
   getSampleAlbumData,
   getCustomAlbums,
@@ -25,51 +25,64 @@ function extractFolderId(input: string): string {
   return trimmed;
 }
 
-// GET: List all albums with selection counts
+// GET: List all albums with selection counts from Supabase + Local backup
 export async function GET(request: NextRequest) {
   if (!verifyAdminAuth(request)) {
     return NextResponse.json({ error: "Chưa đăng nhập quyền quản trị." }, { status: 401 });
   }
 
-  let dbAlbums: any[] = [];
+  const localCustom = getCustomAlbums();
+  const customMap = new Map(localCustom.map((a) => [a.slug, a]));
+
   try {
-    if (process.env.DATABASE_URL) {
-      dbAlbums = await prisma.album.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
+    const { data: supaAlbums, error } = await supabase
+      .from("Album")
+      .select("*, selections:Selection(id)")
+      .order("createdAt", { ascending: false });
+
+    if (!error && supaAlbums) {
+      const formatted = supaAlbums.map((a: any) => {
+        const local = customMap.get(a.slug);
+        return {
+          ...a,
+          maxSelections: a.maxSelections ?? local?.maxSelections ?? null,
           _count: {
-            select: { selections: true },
+            selections: Array.isArray(a.selections) ? a.selections.length : 0,
           },
-        },
+        };
       });
+
+      // Include any local albums not yet in Supabase
+      for (const ca of localCustom) {
+        if (!formatted.some((a: any) => a.slug === ca.slug || a.id === ca.id)) {
+          formatted.push({
+            ...ca,
+            _count: { selections: getAllSelectionsForAlbum(ca.slug).length },
+          });
+        }
+      }
+
+      return NextResponse.json(formatted);
     }
   } catch (error: unknown) {
-    console.warn("DB connection error in GET albums, attempting dev fallback:", error);
+    console.warn("Supabase fetch error in GET albums, falling back to local:", error);
   }
 
-  const customAlbums = getCustomAlbums().map((ca) => ({
+  // Fallback to local albums
+  const formatted = localCustom.map((ca) => ({
     ...ca,
     _count: { selections: getAllSelectionsForAlbum(ca.slug).length },
   }));
 
-  // Combine DB albums and custom local albums
-  const combined = [...dbAlbums];
-  for (const ca of customAlbums) {
-    if (!combined.some((a) => a.id === ca.id || a.slug === ca.slug)) {
-      combined.push(ca);
-    }
-  }
-
-  // Include sample album duyen if not present
   const sample = getSampleAlbumData("duyen");
-  if (sample && sample.album && !combined.some((a) => a.slug === "duyen" || a.id === sample.album.id)) {
-    combined.push({
+  if (sample && sample.album && !formatted.some((a) => a.slug === "duyen" || a.id === sample.album.id)) {
+    formatted.push({
       ...sample.album,
       _count: { selections: 1 },
     });
   }
 
-  return NextResponse.json(combined);
+  return NextResponse.json(formatted);
 }
 
 // POST: Create a new album
@@ -84,14 +97,14 @@ export async function POST(request: NextRequest) {
 
     if (!title || !driveFolderId) {
       return NextResponse.json(
-        { error: "Vui lòng nhập Tiêu đề và Google Drive Folder Link/ID." },
+        { error: "Vui lòng nhập Tiêu đề và Google Drive Link/ID." },
         { status: 400 }
       );
     }
 
     const cleanFolderId = extractFolderId(driveFolderId);
 
-    // 1. Validate Google Drive folder (supports both Service Account & Public links)
+    // 1. Validate Google Drive folder
     try {
       await getFolderMetadata(cleanFolderId);
     } catch (err: unknown) {
@@ -110,7 +123,7 @@ export async function POST(request: NextRequest) {
     let counter = 1;
 
     const allCustom = getCustomAlbums();
-    while (allCustom.some((a) => a.slug === slug) || slug === "duyen") {
+    while (allCustom.some((a) => a.slug === slug)) {
       slug = `${originalSlug}-${counter}`;
       counter++;
     }
@@ -132,38 +145,39 @@ export async function POST(request: NextRequest) {
       maxSelections: parsedMaxSelections,
     };
 
-    // 3. Create album in DB if DATABASE_URL is configured
-    if (process.env.DATABASE_URL) {
-      try {
-        let slugExists = await prisma.album.findUnique({ where: { slug } });
-        while (slugExists) {
-          slug = `${originalSlug}-${counter}`;
-          slugExists = await prisma.album.findUnique({ where: { slug } });
-          counter++;
-        }
-        albumData.slug = slug;
+    // Save locally
+    const localAlbum = saveCustomAlbum(albumData);
 
-        const album = await prisma.album.create({
-          data: {
-            title: albumData.title,
-            slug: albumData.slug,
-            driveFolderId: albumData.driveFolderId,
-            password: albumData.password,
-            expiresAt: albumData.expiresAt ? new Date(albumData.expiresAt) : null,
-            logoUrl: albumData.logoUrl,
-            bannerUrl: albumData.bannerUrl,
-            allowDownloads: albumData.allowDownloads,
-            maxSelections: albumData.maxSelections,
-          },
-        });
-        return NextResponse.json(album, { status: 201 });
-      } catch (dbErr) {
-        console.warn("DB save failed, falling back to local custom albums:", dbErr);
+    // Save to Supabase
+    try {
+      const now = new Date().toISOString();
+      const supaPayload: any = {
+        id: localAlbum.id,
+        title: albumData.title,
+        slug: albumData.slug,
+        driveFolderId: albumData.driveFolderId,
+        password: albumData.password,
+        expiresAt: albumData.expiresAt,
+        logoUrl: albumData.logoUrl,
+        bannerUrl: albumData.bannerUrl,
+        allowDownloads: albumData.allowDownloads,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const { data: inserted, error: supaErr } = await supabase
+        .from("Album")
+        .upsert(supaPayload)
+        .select()
+        .single();
+
+      if (!supaErr && inserted) {
+        return NextResponse.json({ ...inserted, maxSelections: parsedMaxSelections }, { status: 201 });
       }
+    } catch (e) {
+      console.warn("Supabase insert error, saved locally:", e);
     }
 
-    // 4. Fallback: Save to local custom albums
-    const localAlbum = saveCustomAlbum(albumData);
     return NextResponse.json(localAlbum, { status: 201 });
   } catch (error: unknown) {
     console.error("POST album error:", error);
@@ -212,30 +226,7 @@ export async function PUT(request: NextRequest) {
             : null)
         : undefined;
 
-    if (process.env.DATABASE_URL) {
-      try {
-        const existing = await prisma.album.findUnique({ where: { id } });
-        if (existing) {
-          const updatedAlbum = await prisma.album.update({
-            where: { id },
-            data: {
-              title: title !== undefined ? title : existing.title,
-              driveFolderId: cleanFolderId !== undefined ? cleanFolderId : existing.driveFolderId,
-              password: password !== undefined ? (password || null) : existing.password,
-              expiresAt: expiresAt !== undefined ? (expiresAt ? new Date(expiresAt) : null) : existing.expiresAt,
-              logoUrl: logoUrl !== undefined ? logoUrl : existing.logoUrl,
-              bannerUrl: bannerUrl !== undefined ? bannerUrl : existing.bannerUrl,
-              allowDownloads: allowDownloads !== undefined ? !!allowDownloads : existing.allowDownloads,
-              maxSelections: parsedMaxSelections !== undefined ? parsedMaxSelections : existing.maxSelections,
-            },
-          });
-          return NextResponse.json(updatedAlbum);
-        }
-      } catch (dbErr) {
-        console.warn("DB update failed, attempting local update:", dbErr);
-      }
-    }
-
+    // Update locally
     const updated = updateCustomAlbum(id, {
       ...(title !== undefined ? { title } : {}),
       ...(cleanFolderId !== undefined ? { driveFolderId: cleanFolderId } : {}),
@@ -246,6 +237,24 @@ export async function PUT(request: NextRequest) {
       ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
       ...(parsedMaxSelections !== undefined ? { maxSelections: parsedMaxSelections } : {}),
     });
+
+    // Update in Supabase
+    try {
+      const supaUpdates: any = {
+        ...(title !== undefined ? { title } : {}),
+        ...(cleanFolderId !== undefined ? { driveFolderId: cleanFolderId } : {}),
+        ...(password !== undefined ? { password: password || null } : {}),
+        ...(expiresAt !== undefined ? { expiresAt: expiresAt || null } : {}),
+        ...(logoUrl !== undefined ? { logoUrl } : {}),
+        ...(bannerUrl !== undefined ? { bannerUrl } : {}),
+        ...(allowDownloads !== undefined ? { allowDownloads: !!allowDownloads } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await supabase.from("Album").update(supaUpdates).eq("id", id);
+    } catch (e) {
+      console.warn("Supabase update error:", e);
+    }
 
     if (updated) {
       return NextResponse.json(updated);
@@ -276,13 +285,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Thiếu Album ID cần xóa." }, { status: 400 });
     }
 
-    if (process.env.DATABASE_URL) {
-      try {
-        await prisma.album.delete({ where: { id } });
-        return NextResponse.json({ message: "Xóa album thành công." });
-      } catch (dbErr) {
-        console.warn("DB delete failed, attempting local delete:", dbErr);
-      }
+    // Delete in Supabase
+    try {
+      await supabase.from("Selection").delete().eq("albumId", id);
+      await supabase.from("Album").delete().eq("id", id);
+    } catch (e) {
+      console.warn("Supabase delete error:", e);
     }
 
     deleteCustomAlbum(id);

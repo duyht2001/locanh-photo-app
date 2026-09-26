@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import prisma from "@/lib/db";
 import { verifyAdminAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import {
   getSampleAlbumData,
   getAlbumBySlugOrId,
@@ -22,22 +22,26 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    if (process.env.DATABASE_URL) {
-      // 1. Fetch album details
-      const album = await prisma.album.findUnique({
-        where: { id: albumId },
-      });
+    // 1. Try Supabase
+    let supaAlbum: any = null;
+    const { data: aData } = await supabase
+      .from("Album")
+      .select("*")
+      .or(`id.eq.${albumId},slug.eq.${albumId}`)
+      .maybeSingle();
 
-      if (album) {
-        // 2. Fetch all selections for this album
-        const selections = await prisma.selection.findMany({
-          where: { albumId },
-          orderBy: { updatedAt: "desc" },
-        });
+    if (aData) supaAlbum = aData;
 
-        // 3. Group selections by clientSessionId
-        const groupedSelections: { [sessionId: string]: typeof selections } = {};
-        for (const sel of selections) {
+    if (supaAlbum) {
+      const { data: supaSels } = await supabase
+        .from("Selection")
+        .select("*")
+        .eq("albumId", supaAlbum.id)
+        .order("updatedAt", { ascending: false });
+
+      if (supaSels && supaSels.length > 0) {
+        const groupedSelections: { [sessionId: string]: typeof supaSels } = {};
+        for (const sel of supaSels) {
           if (!groupedSelections[sel.clientSessionId]) {
             groupedSelections[sel.clientSessionId] = [];
           }
@@ -45,20 +49,19 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({
-          album,
-          selections,
+          album: supaAlbum,
+          selections: supaSels,
           groupedSelections,
         });
       }
     }
   } catch (error: any) {
-    console.warn("DB error in selections GET, attempting dev fallback:", error);
+    console.warn("Supabase selections fetch error:", error);
   }
 
-  // Fallback for custom local albums or sample album
+  // 2. Fallback to local store or sample data
   const album = getAlbumBySlugOrId(albumId);
   if (album) {
-    // If it's duyen and no real selections yet, return dummy demo selections
     if (album.slug === "duyen" && getAllSelectionsForAlbum("duyen").length === 0) {
       const sample = getSampleAlbumData("duyen");
       const dummySelections = [

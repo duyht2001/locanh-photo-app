@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import prisma from "@/lib/db";
 import { listImagesInFolder } from "@/lib/drive";
+import { supabase } from "@/lib/supabase";
 import { getSampleAlbumData, getLocalSelections, getAlbumBySlugOrId } from "@/lib/mockStore";
 
 export async function GET(
@@ -19,19 +19,21 @@ export async function GET(
   }
 
   try {
-    // 1. Fetch album from DB or custom albums or sample
+    // 1. Fetch album from Supabase or Local
     let album: any = null;
-    let dbAvailable = !!process.env.DATABASE_URL;
 
-    if (dbAvailable) {
-      try {
-        album = await prisma.album.findUnique({
-          where: { slug },
-        });
-      } catch (dbErr) {
-        console.warn("DB connection error in photos route, attempting dev fallback:", dbErr);
-        dbAvailable = false;
+    try {
+      const { data: supaAlbum, error } = await supabase
+        .from("Album")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (!error && supaAlbum) {
+        album = supaAlbum;
       }
+    } catch (e) {
+      console.warn("Supabase album fetch error:", e);
     }
 
     if (!album) {
@@ -41,6 +43,10 @@ export async function GET(
     if (!album) {
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
     }
+
+    // Merge maxSelections from local if Supabase doesn't have the column yet
+    const localAlbum = getAlbumBySlugOrId(slug);
+    const maxSelections = album.maxSelections ?? localAlbum?.maxSelections ?? null;
 
     // 2. Check Expiration
     if (album.expiresAt && new Date() > new Date(album.expiresAt) && !isAdmin) {
@@ -58,7 +64,7 @@ export async function GET(
       );
     }
 
-    // 4. Fetch photos (from sample if duyen, or from Google Drive)
+    // 4. Fetch photos (from sample if duyen without folder, or from Google Drive)
     let photos: any[] = [];
     const sample = getSampleAlbumData(slug);
     if (slug === "duyen" && sample && sample.photos && (!album.driveFolderId || album.driveFolderId === "sample-folder-id")) {
@@ -78,16 +84,17 @@ export async function GET(
     // 5. Get current client selections
     let selectionMap = new Map<string, any>();
     if (sessionId) {
-      if (dbAvailable) {
-        try {
-          const selections = await prisma.selection.findMany({
-            where: {
-              albumId: album.id,
-              clientSessionId: sessionId,
-            },
-          });
+      // Try Supabase first
+      try {
+        const { data: supaSels } = await supabase
+          .from("Selection")
+          .select("*")
+          .eq("albumId", album.id)
+          .eq("clientSessionId", sessionId);
+
+        if (supaSels && supaSels.length > 0) {
           selectionMap = new Map(
-            selections.map((sel) => [
+            supaSels.map((sel: any) => [
               sel.photoId,
               {
                 isFavorite: sel.isFavorite,
@@ -96,11 +103,12 @@ export async function GET(
               },
             ])
           );
-        } catch (selErr) {
-          console.warn("DB selection fetch error, fallback to local:", selErr);
         }
+      } catch (e) {
+        console.warn("Supabase selection fetch error:", e);
       }
 
+      // Fallback to local
       if (selectionMap.size === 0) {
         const localSelections = getLocalSelections(album.slug, sessionId);
         selectionMap = new Map(
@@ -127,7 +135,6 @@ export async function GET(
       };
     });
 
-    // Strip password from album object before sending to client
     const safeAlbum = {
       id: album.id,
       slug: album.slug,
@@ -136,7 +143,7 @@ export async function GET(
       logoUrl: album.logoUrl || "/logo.jpg",
       bannerUrl: album.bannerUrl,
       allowDownloads: album.allowDownloads,
-      maxSelections: album.maxSelections ?? null,
+      maxSelections: maxSelections,
       isPasswordProtected: !!album.password,
     };
 

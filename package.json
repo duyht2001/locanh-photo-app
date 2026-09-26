@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@supabase/server": "^1.8.0",
+    "@supabase/supabase-js": "^2.117.2",
     "framer-motion": "^12.42.0",
     "googleapis": "^173.0.0",
     "lucide-react": "^1.22.0",
