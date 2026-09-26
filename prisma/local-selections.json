@@ -1,0 +1,16 @@
+{
+  "viet": {
+    "khach-anh-viet": {
+      "1N5BobzIT2l_1pHNYXQ3PZAcbGndKkh4Q": {
+        "id": "sel_1N5BobzIT2l_1pHNYXQ3PZAcbGndKkh4Q",
+        "clientSessionId": "khach-anh-viet",
+        "photoId": "1N5BobzIT2l_1pHNYXQ3PZAcbGndKkh4Q",
+        "photoName": "CUNS0058.JPG",
+        "isFavorite": true,
+        "isTicked": false,
+        "colorFlag": null,
+        "updatedAt": "2026-09-26T07:07:39.293Z"
+      }
+    }
+  }
+}

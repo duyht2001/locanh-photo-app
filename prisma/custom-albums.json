@@ -1,0 +1,30 @@
+[
+  {
+    "id": "album_1790407268453_2nljq",
+    "createdAt": "2026-09-26T07:21:08.453Z",
+    "updatedAt": "2026-09-26T07:21:08.453Z",
+    "title": "market",
+    "slug": "market",
+    "driveFolderId": "1K2KXKu1l0J6mpyCt3CF3q_FCJV7ZxhwS",
+    "password": null,
+    "expiresAt": null,
+    "logoUrl": "/logo.jpg",
+    "bannerUrl": null,
+    "allowDownloads": false,
+    "maxSelections": 10
+  },
+  {
+    "id": "album_1790406406179_mmsoe",
+    "createdAt": "2026-09-26T07:06:46.179Z",
+    "updatedAt": "2026-09-26T07:06:46.179Z",
+    "title": "viet",
+    "slug": "viet",
+    "driveFolderId": "1OrpYVhKNPwfqW8_VF--A4k_bTjrTUP0G",
+    "password": null,
+    "expiresAt": null,
+    "logoUrl": "/logo.jpg",
+    "bannerUrl": null,
+    "allowDownloads": true,
+    "maxSelections": 10
+  }
+]

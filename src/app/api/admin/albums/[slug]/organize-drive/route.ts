@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import prisma from "@/lib/db";
 import { createSubfolder, copyFileToFolder } from "@/lib/drive";
+import { getAlbumBySlugOrId, getGroupedSelectionsForAlbum } from "@/lib/mockStore";
 
 export async function POST(
   request: NextRequest,
@@ -20,36 +21,72 @@ export async function POST(
       return NextResponse.json({ error: "Tên thư mục không được để trống" }, { status: 400 });
     }
 
-    // 1. Fetch album details to get the parent Google Drive folder
-    const album = await prisma.album.findUnique({
-      where: { slug },
-    });
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      return NextResponse.json(
+        {
+          error:
+            "Tính năng tự động tạo thư mục và sao chép ảnh trên Google Drive yêu cầu cấu hình Service Account (GOOGLE_SERVICE_ACCOUNT_KEY trong file .env). Bạn có thể xem tab 'Hướng dẫn setup Drive' hoặc dùng công cụ 'Chép ảnh sang thư mục máy tính' ngay bên dưới rất tiện lợi và không cần cài đặt API!",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 1. Fetch album details
+    let album: any = null;
+    if (process.env.DATABASE_URL) {
+      try {
+        album = await prisma.album.findUnique({
+          where: { slug },
+        });
+      } catch (e) {
+        console.warn("DB fetch failed in organize-drive:", e);
+      }
+    }
+
+    if (!album) {
+      album = getAlbumBySlugOrId(slug);
+    }
 
     if (!album) {
       return NextResponse.json({ error: "Không tìm thấy album" }, { status: 404 });
     }
 
-    // 2. Fetch selections based on session requirements
-    const selectionWhereClause: any = {
-      albumId: album.id,
-      OR: [
-        { isFavorite: true },
-        { isTicked: true },
-        { colorFlag: { not: null } }
-      ]
-    };
+    // 2. Fetch selections
+    let selections: { photoId: string; photoName: string }[] = [];
+    if (process.env.DATABASE_URL) {
+      try {
+        const selectionWhereClause: any = {
+          albumId: album.id,
+          OR: [
+            { isFavorite: true },
+            { isTicked: true },
+            { colorFlag: { not: null } },
+          ],
+        };
 
-    if (sessionId && sessionId !== "all") {
-      selectionWhereClause.clientSessionId = sessionId;
+        if (sessionId && sessionId !== "all") {
+          selectionWhereClause.clientSessionId = sessionId;
+        }
+
+        const dbSels = await prisma.selection.findMany({
+          where: selectionWhereClause,
+          select: {
+            photoId: true,
+            photoName: true,
+          },
+        });
+        selections = dbSels;
+      } catch (e) {
+        console.warn("DB selections fetch error:", e);
+      }
     }
 
-    const selections = await prisma.selection.findMany({
-      where: selectionWhereClause,
-      select: {
-        photoId: true,
-        photoName: true,
-      }
-    });
+    if (selections.length === 0) {
+      const { selections: localSels } = getGroupedSelectionsForAlbum(album.slug, album.id);
+      selections = localSels
+        .filter((s) => (sessionId === "all" || s.clientSessionId === sessionId) && (s.isFavorite || s.isTicked || !!s.colorFlag))
+        .map((s) => ({ photoId: s.photoId, photoName: s.photoName }));
+    }
 
     if (selections.length === 0) {
       return NextResponse.json(
@@ -65,7 +102,6 @@ export async function POST(
     // 4. Copy all selected files to the newly created subfolder
     console.log(`Copying ${selections.length} photos into subfolder ${subfolderId}`);
     
-    // We execute copies in chunks of 5 parallel requests to prevent hitting Google Drive API rate limits
     const chunkSize = 5;
     const copiedFiles: string[] = [];
     const errors: string[] = [];

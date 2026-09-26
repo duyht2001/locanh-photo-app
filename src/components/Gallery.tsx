@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Search, Download, Heart, Check, Flag, Grid, FileText, ChevronDown } from "lucide-react";
+import { Search, Download, Heart, Check, Grid, FileText, ChevronDown, AlertCircle } from "lucide-react";
 import { Photo } from "@/types";
 import PhotoCard from "./PhotoCard";
 import Lightbox from "./Lightbox";
@@ -10,16 +10,24 @@ interface GalleryProps {
   onSelect: (photoId: string, photoName: string, action: "favorite" | "tick" | "flag", value: any) => void;
   albumTitle: string;
   allowDownloads?: boolean;
+  maxSelections?: number | null;
 }
 
 type FilterType = "all" | "selected" | "unselected" | "favorite" | "ticked" | "flag-red" | "flag-yellow" | "flag-green" | "flag-blue";
 
-export default function Gallery({ initialPhotos, onSelect, albumTitle, allowDownloads = true }: GalleryProps) {
+export default function Gallery({
+  initialPhotos,
+  onSelect,
+  albumTitle,
+  allowDownloads = true,
+  maxSelections,
+}: GalleryProps) {
   const [photos, setPhotos] = useState<Photo[]>(initialPhotos);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
   // Pagination / Infinite scroll state
   const [visibleCount, setVisibleCount] = useState(24);
@@ -30,8 +38,24 @@ export default function Gallery({ initialPhotos, onSelect, albumTitle, allowDown
     setPhotos(initialPhotos);
   }, [initialPhotos]);
 
-  // Handle local UI selection update to prevent waiting for server response
+  // Handle local UI selection update with limit protection
   const handleSelect = (photoId: string, photoName: string, action: "favorite" | "tick" | "flag", value: any) => {
+    const targetPhoto = photos.find((p) => p.id === photoId);
+    const wasSelected = !!(
+      targetPhoto &&
+      (targetPhoto.isFavorite || targetPhoto.isTicked || targetPhoto.colorFlag)
+    );
+
+    // Determine if this action intends to select/activate the photo
+    const willBeSelected = action === "flag" ? !!value : !!value;
+
+    if (!wasSelected && willBeSelected && maxSelections && maxSelections > 0 && stats.selected >= maxSelections) {
+      setLimitWarning(
+        `Bạn đã chọn đủ số lượng tối đa (${maxSelections} ảnh) theo quy định của album! Vui lòng bỏ chọn bớt ảnh khác nếu muốn chọn thêm ảnh này.`
+      );
+      return;
+    }
+
     // 1. Instantly update local state for snappy UI
     setPhotos((prev) =>
       prev.map((photo) => {
@@ -196,9 +220,43 @@ export default function Gallery({ initialPhotos, onSelect, albumTitle, allowDown
 
           {/* Statistics and Export Buttons */}
           <div className="flex items-center justify-between gap-3 md:justify-end">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-              Đã chọn: <span className="font-bold text-zinc-900">{stats.selected}</span> / {stats.total} ảnh
-            </div>
+            {maxSelections && maxSelections > 0 ? (
+              <div className="flex flex-col items-end gap-1.5">
+                <div
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 shadow-xs ${
+                    stats.selected >= maxSelections
+                      ? "bg-amber-50 border-amber-300 text-amber-900"
+                      : "bg-zinc-100 border-zinc-200 text-zinc-800"
+                  }`}
+                >
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500">Đã chọn:</span>
+                  <span className="font-extrabold text-sm text-zinc-950">{stats.selected}</span>
+                  <span className="text-zinc-400 font-normal">/</span>
+                  <span className="font-extrabold text-sm text-zinc-950">{maxSelections}</span>
+                  <span className="text-zinc-500 text-[11px]">ảnh</span>
+                  {stats.selected >= maxSelections && (
+                    <span className="bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ml-0.5">
+                      Đạt tối đa
+                    </span>
+                  )}
+                </div>
+                {/* Visual Progress bar */}
+                <div className="w-28 sm:w-36 h-1.5 bg-zinc-200/60 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 rounded-full ${
+                      stats.selected >= maxSelections ? "bg-amber-500" : "bg-zinc-900"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, (stats.selected / maxSelections) * 100)}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                Đã chọn: <span className="font-bold text-zinc-900">{stats.selected}</span> / {stats.total} ảnh
+              </div>
+            )}
 
             {/* Export Menu Button */}
             <div className="relative">
@@ -360,6 +418,29 @@ export default function Gallery({ initialPhotos, onSelect, albumTitle, allowDown
           allowDownloads={allowDownloads}
           onNavigate={(index) => setActivePhotoIndex(index)}
         />
+      )}
+
+      {/* Selection Limit Alert Modal */}
+      {limitWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-50 border border-amber-200 text-amber-600">
+              <AlertCircle className="h-7 w-7 stroke-[2.2]" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-zinc-900">Đã đạt giới hạn chọn ảnh</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed pt-1">{limitWarning}</p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => setLimitWarning(null)}
+                className="w-full rounded-xl bg-zinc-900 py-2.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-sm"
+              >
+                Đã hiểu
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -13,10 +13,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Locanh - Hệ thống chọn lọc ảnh online chuyên nghiệp",
+  title: "Tô Studio - Lọc Ảnh",
   description:
-    "Chọn lọc ảnh trực tiếp từ Google Drive của bạn một cách nhanh chóng, bảo mật, tối giản và đẹp mắt. Giải pháp tối ưu cho các Studio ảnh cưới, kỷ yếu và nhiếp ảnh gia.",
-  keywords: ["chọn lọc ảnh", "chọn ảnh online", "pixieset vietnam", "shoptik", "lọc ảnh google drive", "nhiếp ảnh"],
+    "Tô Studio - Hệ thống chọn lọc ảnh online chuyên nghiệp. Chọn lọc ảnh trực tiếp từ Google Drive một cách nhanh chóng, bảo mật và tiện lợi.",
+  keywords: ["Tô Studio", "Tô Studio lọc ảnh", "chọn lọc ảnh", "chọn ảnh online", "lọc ảnh google drive", "nhiếp ảnh"],
+  icons: {
+    icon: "/logo.jpg",
+    shortcut: "/logo.jpg",
+    apple: "/logo.jpg",
+  },
 };
 
 export default function RootLayout({

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSessionId } from "@/hooks/useSessionId";
 import Gallery from "@/components/Gallery";
 import { SkeletonCard } from "@/components/Skeleton";
-import { Photo, Album } from "@/types";
+import { Photo } from "@/types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -261,11 +261,11 @@ export default function AlbumGuestPage({ params }: PageProps) {
         <div className="flex flex-col items-center text-center">
           
           {/* Logo container */}
-          <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-zinc-50 shadow-md flex items-center justify-center">
+          <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-white shadow-md flex items-center justify-center">
             {album.logoUrl ? (
-              <img src={album.logoUrl} alt="Studio Logo" className="h-full w-full object-cover" />
+              <img src={album.logoUrl} alt={album.title} className="h-full w-full object-cover" />
             ) : (
-              <span className="text-xl font-bold tracking-wider text-zinc-400">STUDIO</span>
+              <img src="/logo.jpg" alt="Tô Studio" className="h-full w-full object-cover" />
             )}
           </div>
 
@@ -276,6 +276,8 @@ export default function AlbumGuestPage({ params }: PageProps) {
 
           {/* Status details */}
           <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
+            <span className="font-medium text-zinc-600">Tô Studio</span>
+            <span className="h-1 w-1 rounded-full bg-zinc-300" />
             <span>Album ảnh trực tuyến</span>
             {album.expiresAt && (
               <>
@@ -293,6 +295,7 @@ export default function AlbumGuestPage({ params }: PageProps) {
         onSelect={handlePhotoSelect}
         albumTitle={album.title}
         allowDownloads={album.allowDownloads}
+        maxSelections={album.maxSelections}
       />
     </div>
   );

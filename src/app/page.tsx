@@ -1,19 +1,27 @@
 "use client";
 
 import React, { useState } from "react";
-import { Camera, ArrowRight, Image as ImageIcon } from "lucide-react";
+import { ArrowRight, Image as ImageIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-// Pre-curated active high-quality romantic/wedding portfolio images for the infinite marquee
-const portfolioPhotos = [
-  "https://images.unsplash.com/photo-1519741497674-611481863552?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1583939003579-730e3918a45a?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&auto=format&fit=crop&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
+// Bộ sưu tập ảnh nổi bật từ Tô Studio (https://tostudio.vn/bo-suu-tap/)
+const toStudioShowcase = [
+  { url: "/showcase/photo-1.jpg", title: "A Private Escape", tag: "Nàng Thơ" },
+  { url: "/showcase/photo-2.jpg", title: "Dawn Rouge", tag: "Nàng Thơ" },
+  { url: "/showcase/photo-3.jpg", title: "Cherry Kiss", tag: "Ảnh Cá Nhân" },
+  { url: "/showcase/photo-4.jpg", title: "Pink Dream", tag: "Ảnh Cá Nhân" },
+  { url: "/showcase/photo-5.jpg", title: "Her Quiet Moment", tag: "Nàng Thơ" },
+  { url: "/showcase/photo-6.jpg", title: "Mystic Garden", tag: "Concept" },
+  { url: "/showcase/photo-7.jpg", title: "Our Little Escape", tag: "Nàng Thơ" },
+  { url: "/showcase/photo-8.jpg", title: "Our Summer Story", tag: "Cặp Đôi" },
+  { url: "/showcase/photo-9.jpg", title: "Love & Laugh", tag: "Cặp Đôi" },
+  { url: "/showcase/photo-10.jpg", title: "Couple Moment", tag: "Cặp Đôi" },
+  { url: "/showcase/photo-11.jpg", title: "Biến Hóa Nàng Thơ", tag: "Kỷ Yếu" },
+  { url: "/showcase/photo-12.jpg", title: "Hongkong 90s", tag: "Chân Dung" },
+  { url: "/showcase/photo-13.jpg", title: "Korean Wedding", tag: "Váy Cưới" },
+  { url: "/showcase/photo-14.jpg", title: "Our View", tag: "Váy Cưới" },
+  { url: "/showcase/photo-15.jpg", title: "Waves Of Love", tag: "Váy Cưới" },
+  { url: "/showcase/photo-16.jpg", title: "Miss World VN", tag: "Sự Kiện" },
 ];
 
 export default function Home() {
@@ -88,13 +96,18 @@ export default function Home() {
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_40%,#000_80%,transparent_100%)] pointer-events-none" />
 
       {/* Header */}
-      <header className="relative z-10 border-b border-white/5 bg-zinc-950/40 px-6 py-5 backdrop-blur-md">
+      <header className="relative z-10 border-b border-white/5 bg-zinc-950/40 px-6 py-4 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-2.5 mx-auto sm:mx-0">
-            <div className="rounded-lg bg-white p-1.5 text-black shadow-sm">
-              <Camera className="h-4 w-4 stroke-[2.5]" />
+          <div className="flex items-center gap-3 mx-auto sm:mx-0">
+            <img
+              src="/logo.jpg"
+              alt="Tô Studio"
+              className="h-10 w-10 rounded-full object-cover border border-white/20 shadow-md bg-white"
+            />
+            <div className="text-left">
+              <span className="text-base font-bold tracking-wider text-white font-sans block">TÔ STUDIO</span>
+              <span className="text-[10px] tracking-widest text-zinc-400 font-sans block uppercase">Hệ Thống Lọc Ảnh</span>
             </div>
-            <span className="text-sm font-bold tracking-widest text-white font-sans">LOCANH</span>
           </div>
         </div>
       </header>
@@ -168,30 +181,80 @@ export default function Home() {
         </div>
       </main>
 
-      {/* Infinite Photo Marquee (Shotpik style portfolio slider) */}
-      <div className="relative w-full overflow-hidden py-6 bg-gradient-to-t from-zinc-950/80 to-transparent z-10 border-t border-white/5 pointer-events-none">
-        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
-        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+      {/* Infinite Photo Marquee (Tô Studio Collection Showcase) */}
+      <div className="relative w-full overflow-hidden py-8 bg-gradient-to-t from-zinc-950 via-zinc-950/70 to-transparent z-10 border-t border-white/5">
+        <div className="mx-auto max-w-7xl px-6 mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-bold tracking-widest text-zinc-400 uppercase">
+              Bộ Sưu Tập Nổi Bật - Tô Studio
+            </span>
+          </div>
+          <a
+            href="https://tostudio.vn/bo-suu-tap/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-zinc-400 hover:text-white transition-colors tracking-wider uppercase font-medium flex items-center gap-1"
+          >
+            <span>Xem thêm tại tostudio.vn</span>
+            <ArrowRight className="h-3 w-3" />
+          </a>
+        </div>
 
-        <div className="animate-marquee pointer-events-auto">
-          {/* First loop of photos */}
-          {portfolioPhotos.map((url, i) => (
-            <div key={`p1-${i}`} className="w-40 sm:w-52 aspect-[3/4] mx-2 rounded-xl overflow-hidden border border-white/10 shadow-lg transform hover:scale-[1.03] transition-transform duration-300 cursor-pointer bg-zinc-900 group">
-              <img src={url} alt="" className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-300" />
-            </div>
-          ))}
-          {/* Second loop of photos to make infinite scroll smooth */}
-          {portfolioPhotos.map((url, i) => (
-            <div key={`p2-${i}`} className="w-40 sm:w-52 aspect-[3/4] mx-2 rounded-xl overflow-hidden border border-white/10 shadow-lg transform hover:scale-[1.03] transition-transform duration-300 cursor-pointer bg-zinc-900 group">
-              <img src={url} alt="" className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-300" />
-            </div>
-          ))}
+        <div className="relative w-full overflow-hidden">
+          <div className="absolute inset-y-0 left-0 w-24 sm:w-36 bg-gradient-to-r from-zinc-950 to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-24 sm:w-36 bg-gradient-to-l from-zinc-950 to-transparent z-10 pointer-events-none" />
+
+          <div className="animate-marquee">
+            {/* First loop of photos */}
+            {toStudioShowcase.map((item, i) => (
+              <div
+                key={`p1-${i}`}
+                className="relative w-44 sm:w-60 aspect-[3/4] mx-2.5 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transform hover:scale-[1.03] transition-all duration-300 bg-zinc-900 group shrink-0"
+              >
+                <img
+                  src={item.url}
+                  alt={item.title}
+                  loading="lazy"
+                  className="h-full w-full object-cover grayscale-[15%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
+                <div className="absolute bottom-3 left-3 right-3 text-left">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md text-white border border-white/20 mb-1">
+                    {item.tag}
+                  </span>
+                  <p className="text-xs font-bold text-white truncate drop-shadow-sm">{item.title}</p>
+                </div>
+              </div>
+            ))}
+            {/* Second loop of photos to make infinite scroll perfectly seamless */}
+            {toStudioShowcase.map((item, i) => (
+              <div
+                key={`p2-${i}`}
+                className="relative w-44 sm:w-60 aspect-[3/4] mx-2.5 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transform hover:scale-[1.03] transition-all duration-300 bg-zinc-900 group shrink-0"
+              >
+                <img
+                  src={item.url}
+                  alt={item.title}
+                  loading="lazy"
+                  className="h-full w-full object-cover grayscale-[15%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
+                <div className="absolute bottom-3 left-3 right-3 text-left">
+                  <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-white/20 backdrop-blur-md text-white border border-white/20 mb-1">
+                    {item.tag}
+                  </span>
+                  <p className="text-xs font-bold text-white truncate drop-shadow-sm">{item.title}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/5 bg-zinc-950 px-6 py-6 text-center text-[9px] tracking-widest text-zinc-500 uppercase">
-        <p>© {new Date().getFullYear()} Locanh. Thiết kế cao cấp dành cho các Studio ảnh chuyên nghiệp.</p>
+        <p>© {new Date().getFullYear()} Tô Studio - Lọc Ảnh. Thiết kế cao cấp dành cho Studio & Khách hàng.</p>
       </footer>
     </div>
   );

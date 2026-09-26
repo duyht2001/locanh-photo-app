@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import prisma from "@/lib/db";
 import { listImagesInFolder } from "@/lib/drive";
+import { getSampleAlbumData, getLocalSelections, getAlbumBySlugOrId } from "@/lib/mockStore";
 
 export async function GET(
   request: NextRequest,
@@ -18,10 +19,24 @@ export async function GET(
   }
 
   try {
-    // 1. Fetch album
-    const album = await prisma.album.findUnique({
-      where: { slug },
-    });
+    // 1. Fetch album from DB or custom albums or sample
+    let album: any = null;
+    let dbAvailable = !!process.env.DATABASE_URL;
+
+    if (dbAvailable) {
+      try {
+        album = await prisma.album.findUnique({
+          where: { slug },
+        });
+      } catch (dbErr) {
+        console.warn("DB connection error in photos route, attempting dev fallback:", dbErr);
+        dbAvailable = false;
+      }
+    }
+
+    if (!album) {
+      album = getAlbumBySlugOrId(slug);
+    }
 
     if (!album) {
       return NextResponse.json({ error: "Album not found" }, { status: 404 });
@@ -43,40 +58,63 @@ export async function GET(
       );
     }
 
-    // 4. Fetch photos from Google Drive
-    let photos = [];
-    try {
-      photos = await listImagesInFolder(album.driveFolderId);
-    } catch (driveError: any) {
-      console.error("Failed to list Google Drive files for album:", driveError);
-      return NextResponse.json(
-        { error: `Google Drive folder empty or inaccessible: ${driveError.message}` },
-        { status: 502 }
-      );
+    // 4. Fetch photos (from sample if duyen, or from Google Drive)
+    let photos: any[] = [];
+    const sample = getSampleAlbumData(slug);
+    if (slug === "duyen" && sample && sample.photos && (!album.driveFolderId || album.driveFolderId === "sample-folder-id")) {
+      photos = sample.photos;
+    } else {
+      try {
+        photos = await listImagesInFolder(album.driveFolderId);
+      } catch (driveError: any) {
+        console.error("Failed to list Google Drive files for album:", driveError);
+        return NextResponse.json(
+          { error: `Không thể đọc ảnh từ Google Drive: ${driveError.message}` },
+          { status: 502 }
+        );
+      }
     }
 
     // 5. Get current client selections
-    let selections: any[] = [];
+    let selectionMap = new Map<string, any>();
     if (sessionId) {
-      selections = await prisma.selection.findMany({
-        where: {
-          albumId: album.id,
-          clientSessionId: sessionId,
-        },
-      });
-    }
+      if (dbAvailable) {
+        try {
+          const selections = await prisma.selection.findMany({
+            where: {
+              albumId: album.id,
+              clientSessionId: sessionId,
+            },
+          });
+          selectionMap = new Map(
+            selections.map((sel) => [
+              sel.photoId,
+              {
+                isFavorite: sel.isFavorite,
+                isTicked: sel.isTicked,
+                colorFlag: sel.colorFlag,
+              },
+            ])
+          );
+        } catch (selErr) {
+          console.warn("DB selection fetch error, fallback to local:", selErr);
+        }
+      }
 
-    // Create a map of photo selections for fast lookup
-    const selectionMap = new Map<string, any>(
-      selections.map((sel: any) => [
-        sel.photoId,
-        {
-          isFavorite: sel.isFavorite,
-          isTicked: sel.isTicked,
-          colorFlag: sel.colorFlag,
-        },
-      ])
-    );
+      if (selectionMap.size === 0) {
+        const localSelections = getLocalSelections(album.slug, sessionId);
+        selectionMap = new Map(
+          localSelections.map((sel) => [
+            sel.photoId,
+            {
+              isFavorite: sel.isFavorite,
+              isTicked: sel.isTicked,
+              colorFlag: sel.colorFlag,
+            },
+          ])
+        );
+      }
+    }
 
     // Merge selections into photos
     const photosWithSelections = photos.map((photo) => {
@@ -95,9 +133,10 @@ export async function GET(
       slug: album.slug,
       title: album.title,
       expiresAt: album.expiresAt,
-      logoUrl: album.logoUrl,
+      logoUrl: album.logoUrl || "/logo.jpg",
       bannerUrl: album.bannerUrl,
       allowDownloads: album.allowDownloads,
+      maxSelections: album.maxSelections ?? null,
       isPasswordProtected: !!album.password,
     };
 

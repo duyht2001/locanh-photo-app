@@ -15,18 +15,42 @@ import {
   Check,
   BookOpen,
   Eye,
+  EyeOff,
   Settings,
   HelpCircle,
   FileText,
   Heart,
   FolderPlus,
-  Loader2
+  Loader2,
+  LogOut,
+  ShieldCheck,
+  KeyRound,
 } from "lucide-react";
 import { generateCSV, generateTXT, downloadFile, SelectionExportItem, formatDate } from "@/lib/utils";
 
 export default function AdminPage() {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<"albums" | "guide">("albums");
+
+  // Auth states
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [adminUser, setAdminUser] = useState<string | null>(null);
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  // Change password states
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Data states
   const [albums, setAlbums] = useState<any[]>([]);
@@ -46,6 +70,7 @@ export default function AdminPage() {
     logoUrl: "",
     bannerUrl: "",
     allowDownloads: true,
+    maxSelections: "",
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [formSubmitting, setFormSubmitting] = useState(false);
@@ -255,19 +280,148 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/albums");
+      if (res.status === 401) {
+        setIsAuthenticated(false);
+        return;
+      }
       if (!res.ok) throw new Error("Không thể tải danh sách album.");
       const data = await res.json();
       setAlbums(data);
     } catch (error: any) {
-      alert(error.message || "Lỗi kết nối API.");
+      console.warn("fetchAlbums error:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Check auth status on load
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/api/admin/auth");
+      if (res.ok) {
+        const data = await res.json();
+        setIsAuthenticated(true);
+        setAdminUser(data.username || "admin");
+        fetchAlbums();
+      } else {
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    } catch {
+      setIsAuthenticated(false);
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetchAlbums();
+    checkAuth();
   }, []);
+
+  // Handle Login submit
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginUsername.trim() || !loginPassword.trim()) {
+      setLoginError("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.");
+      return;
+    }
+
+    setLoggingIn(true);
+    setLoginError(null);
+
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: loginUsername.trim(),
+          password: loginPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Tên đăng nhập hoặc mật khẩu không đúng.");
+      }
+
+      setIsAuthenticated(true);
+      setAdminUser(data.username || loginUsername.trim());
+      setLoginPassword("");
+      fetchAlbums();
+    } catch (err: any) {
+      setLoginError(err.message || "Tên đăng nhập hoặc mật khẩu không chính xác.");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/admin/auth", { method: "DELETE" });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setIsAuthenticated(false);
+    setAdminUser(null);
+    setAlbums([]);
+    setSelectedAlbum(null);
+  };
+
+  // Handle Change Password
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeError(null);
+    setPasswordChangeSuccess(null);
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordChangeError("Vui lòng nhập đầy đủ các trường.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeError("Mật khẩu mới và xác nhận mật khẩu không khớp.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordChangeError("Mật khẩu mới phải có ít nhất 6 ký tự.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const res = await fetch("/api/admin/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Đổi mật khẩu thất bại.");
+      }
+
+      setPasswordChangeSuccess("Đổi mật khẩu thành công!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordChangeSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setPasswordChangeError(err.message);
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   // Fetch detailed selections for an album
   const fetchAlbumSelections = async (albumId: string) => {
@@ -356,6 +510,7 @@ export default function AdminPage() {
       logoUrl: "",
       bannerUrl: "",
       allowDownloads: true,
+      maxSelections: "",
     });
     setFormError(null);
     setShowForm(true);
@@ -372,6 +527,7 @@ export default function AdminPage() {
       logoUrl: album.logoUrl || "",
       bannerUrl: album.bannerUrl || "",
       allowDownloads: album.allowDownloads !== undefined ? album.allowDownloads : true,
+      maxSelections: album.maxSelections ? String(album.maxSelections) : "",
     });
     setFormError(null);
     setShowForm(true);
@@ -385,7 +541,11 @@ export default function AdminPage() {
     const isEdit = !!editingAlbum;
     const url = "/api/admin/albums";
     const method = isEdit ? "PUT" : "POST";
-    const payload = isEdit ? { ...formData, id: editingAlbum.id } : formData;
+    const formattedPayload = {
+      ...formData,
+      maxSelections: formData.maxSelections ? parseInt(formData.maxSelections, 10) : null,
+    };
+    const payload = isEdit ? { ...formattedPayload, id: editingAlbum.id } : formattedPayload;
 
     try {
       const res = await fetch(url, {
@@ -482,6 +642,131 @@ export default function AdminPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  // Loading check state
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-white" />
+          <p className="text-xs text-zinc-400 font-medium tracking-wider uppercase">Đang kiểm tra quyền truy cập...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Login view if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 text-white relative overflow-hidden">
+        {/* Ambient background glow */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+
+        <div className="w-full max-w-sm relative z-10 space-y-6 animate-in fade-in zoom-in-95 duration-300">
+          {/* Logo & Header */}
+          <div className="text-center space-y-3">
+            <div className="mx-auto h-20 w-20 rounded-full overflow-hidden border-2 border-white/20 p-0.5 shadow-2xl bg-white flex items-center justify-center">
+              <img src="/logo.jpg" alt="Tô Studio" className="h-full w-full object-cover rounded-full" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-wider text-white font-serif uppercase">TÔ STUDIO</h1>
+              <p className="text-[11px] text-zinc-400 mt-1 tracking-widest uppercase font-sans">Đăng Nhập Quản Trị Hệ Thống</p>
+            </div>
+          </div>
+
+          {/* Login Card */}
+          <div className="rounded-2xl border border-white/10 bg-zinc-900/90 p-6 backdrop-blur-xl shadow-2xl space-y-5">
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Tài khoản Quản trị
+                </label>
+                <div className="relative flex items-center">
+                  <User className="absolute left-3.5 h-4 w-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Tên tài khoản (admin)"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-zinc-950/60 py-2.5 pl-10 pr-4 text-xs text-white placeholder-zinc-500 outline-none transition-all focus:border-white/30 focus:bg-zinc-950"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                  Mật khẩu
+                </label>
+                <div className="relative flex items-center">
+                  <Lock className="absolute left-3.5 h-4 w-4 text-zinc-500" />
+                  <input
+                    type={showLoginPassword ? "text" : "password"}
+                    required
+                    placeholder="Mật khẩu quản trị"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-zinc-950/60 py-2.5 pl-10 pr-10 text-xs text-white placeholder-zinc-500 outline-none transition-all focus:border-white/30 focus:bg-zinc-950"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-3 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+                    title={showLoginPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  >
+                    {showLoginPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {loginError && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-center text-xs font-semibold text-red-400 animate-shake">
+                  {loginError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loggingIn}
+                className="w-full rounded-xl bg-white py-2.5 text-xs font-bold text-black transition-all hover:bg-zinc-200 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+              >
+                {loggingIn ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Đang xác thực...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Đăng Nhập Quản Trị</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="pt-2 border-t border-white/5 text-center space-y-1.5">
+              <p className="text-[10px] text-zinc-400">
+                💡 Mặc định: <span className="font-mono text-white font-bold">admin</span> / Mật khẩu: <span className="font-mono text-white font-bold">tostudio2026</span>
+              </p>
+              <p className="text-[9px] text-zinc-600">
+                (Có thể đổi tài khoản và mật khẩu trong file .env)
+              </p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/"
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors inline-flex items-center gap-1.5"
+            >
+              <span>← Quay lại Trang chủ</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50/50">
       
@@ -490,7 +775,17 @@ export default function AdminPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-6">
-              <span className="text-sm font-bold tracking-widest text-zinc-950 font-serif">LOCANH ADMIN</span>
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/logo.jpg"
+                  alt="Tô Studio"
+                  className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-xs"
+                />
+                <div>
+                  <span className="text-sm font-bold tracking-wider text-zinc-950 block font-serif">TÔ STUDIO</span>
+                  <span className="text-[9px] font-semibold tracking-widest text-zinc-400 block uppercase">Trang Quản Trị</span>
+                </div>
+              </div>
               <nav className="hidden sm:flex gap-4">
                 <button
                   onClick={() => setActiveTab("albums")}
@@ -511,23 +806,34 @@ export default function AdminPage() {
               </nav>
             </div>
             
-            {/* Mobile Nav Links */}
-            <div className="flex sm:hidden gap-2">
+            {/* User Profile & Logout */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-100 text-zinc-700 text-xs font-semibold">
+                <User className="h-3.5 w-3.5 text-zinc-500" />
+                <span>{adminUser || "admin"}</span>
+              </div>
               <button
-                onClick={() => setActiveTab("albums")}
-                className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full ${
-                  activeTab === "albums" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
-                }`}
+                onClick={() => {
+                  setPasswordChangeError(null);
+                  setPasswordChangeSuccess(null);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setShowPasswordModal(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 hover:border-zinc-900 hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-colors cursor-pointer"
+                title="Đổi mật khẩu tài khoản quản trị"
               >
-                Albums
+                <KeyRound className="h-3.5 w-3.5 text-zinc-500" />
+                <span className="hidden sm:inline">Đổi mật khẩu</span>
               </button>
               <button
-                onClick={() => setActiveTab("guide")}
-                className={`text-[10px] font-bold px-2.5 py-1.5 rounded-full ${
-                  activeTab === "guide" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
-                }`}
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 hover:border-red-200 hover:bg-red-50 text-zinc-600 hover:text-red-600 text-xs font-semibold transition-colors cursor-pointer"
+                title="Đăng xuất khỏi hệ thống quản trị"
               >
-                Setup
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Đăng xuất</span>
               </button>
             </div>
           </div>
@@ -609,9 +915,18 @@ export default function AdminPage() {
                       </div>
                       <div className="mt-3 pt-2 border-t border-zinc-50 flex items-center justify-between text-[10px] text-zinc-500">
                         <span className="font-semibold text-zinc-700">{album._count?.selections || 0} ảnh được chọn</span>
-                        {album.expiresAt && (
-                          <span className="text-red-500 font-medium">Hạn: {new Date(album.expiresAt).toLocaleDateString()}</span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {album.maxSelections ? (
+                            <span className="text-amber-700 bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded text-[9px] font-semibold">
+                              Giới hạn: {album.maxSelections}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-400 text-[9px]">KGH</span>
+                          )}
+                          {album.expiresAt && (
+                            <span className="text-red-500 font-medium">Hạn: {new Date(album.expiresAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -647,6 +962,15 @@ export default function AdminPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {selectedAlbum.maxSelections ? (
+                          <div className="flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-3 py-1 text-[10px] font-semibold text-amber-800">
+                            <span>🎯 Giới hạn: {selectedAlbum.maxSelections} ảnh</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-semibold text-zinc-500">
+                            <span>🎯 Không giới hạn</span>
+                          </div>
+                        )}
                         {selectedAlbum.password && (
                           <div className="flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-[10px] font-semibold text-zinc-600">
                             <Lock className="h-3 w-3" />
@@ -1004,71 +1328,53 @@ export default function AdminPage() {
             
             <div className="space-y-6 text-xs text-zinc-600 leading-relaxed">
               
-              <section className="space-y-2.5">
-                <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] text-white">1</span>
-                  Tạo Google Service Account
-                </h3>
-                <p>
-                  Ứng dụng của chúng ta sử dụng phương pháp <strong>Service Account</strong> (Tài khoản dịch vụ) để đọc thư mục Google Drive ở server-side mà không cần yêu cầu người dùng phải đăng nhập tài khoản Google.
-                </p>
-                <ol className="list-decimal pl-5 space-y-1.5">
-                  <li>Truy cập <a href="https://console.cloud.google.com/" target="_blank" className="text-zinc-900 font-semibold underline">Google Cloud Console</a>.</li>
-                  <li>Tạo một dự án mới (hoặc chọn dự án có sẵn).</li>
-                  <li>Truy cập mục <strong>APIs & Services</strong> &gt; <strong>Library</strong>. Tìm kiếm <strong>Google Drive API</strong> và chọn <strong>Enable</strong>.</li>
-                  <li>Truy cập mục <strong>IAM & Admin</strong> &gt; <strong>Service Accounts</strong> và chọn <strong>Create Service Account</strong>.</li>
-                  <li>Đặt tên cho Service Account và bấm <strong>Create and Continue</strong>, sau đó nhấn <strong>Done</strong>.</li>
-                  <li>Tại danh sách Service Accounts, nhấn vào email Service Account vừa tạo, chuyển sang tab <strong>Keys</strong>.</li>
-                  <li>Chọn <strong>Add Key</strong> &gt; <strong>Create new key</strong>. Chọn định dạng <strong>JSON</strong> và bấm <strong>Create</strong>. Một file JSON chứa private key sẽ được tải về máy của bạn.</li>
-                </ol>
-              </section>
-
-              <section className="space-y-2.5">
-                <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] text-white">2</span>
-                  Liên kết biến môi trường (Environment Variables)
-                </h3>
-                <p>
-                  Mở file JSON vừa tải về ở bước trên, sao chép toàn bộ nội dung của file JSON này. Dán nội dung đó vào file cấu hình môi trường <code>.env</code> (hoặc thiết lập trên Dashboard của Vercel khi deploy) với tên biến:
-                </p>
-                <div className="bg-zinc-900 text-zinc-200 p-3 rounded-lg font-mono text-[10px] relative">
-                  {"GOOGLE_SERVICE_ACCOUNT_KEY='{\"type\": \"service_account\", \"project_id\": \"...\", \"private_key\": \"...\", \"client_email\": \"...\"}'"}
+              {/* Method 1: Public Link */}
+              <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-xl p-5 space-y-3">
+                <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] text-white">★</span>
+                  <span>Cách 1: Dán trực tiếp link Google Drive công khai (Khuyên dùng - Nhanh nhất)</span>
                 </div>
-                <p className="text-[11px] text-amber-600 font-semibold">
-                  ⚠️ Lưu ý: Nội dung JSON này chứa private key tuyệt mật, không được đưa lên GitHub công khai!
+                <p className="text-emerald-900/80 text-xs leading-relaxed">
+                  Không cần cấu hình Google Cloud API phức tạp! Bạn chỉ cần đảm bảo thư mục Google Drive chứa ảnh được mở quyền xem công khai:
                 </p>
-              </section>
-
-              <section className="space-y-2.5">
-                <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] text-white">3</span>
-                  Cấp quyền công khai cho Thư mục Google Drive
-                </h3>
-                <p>
-                  Để website có thể đọc được ảnh mà không cần chia sẻ email thủ công cho Service Account, bạn chỉ cần thiết lập thư mục ở chế độ công khai:
-                </p>
-                <ol className="list-decimal pl-5 space-y-1.5">
-                  <li>Mở Google Drive, nhấp chuột phải vào thư mục ảnh của bạn, chọn <strong>Share</strong> (Chia sẻ) &gt; <strong>Share</strong>.</li>
-                  <li>Tại mục General Access (Quyền truy cập chung), thay đổi từ <strong>Restricted</strong> (Hạn chế) thành <strong>Anyone with the link</strong> (Bất kỳ ai có liên kết).</li>
-                  <li>Đặt quyền bên cạnh là <strong>Viewer</strong> (Người xem). Bấm <strong>Done</strong>. Hệ thống sẽ kết nối trực tiếp qua liên kết công khai này!</li>
+                <ol className="list-decimal pl-5 space-y-1.5 text-emerald-950 font-medium text-xs">
+                  <li>Mở <strong>Google Drive</strong>, nhấp chuột phải vào thư mục ảnh &gt; chọn <strong>Chia sẻ (Share)</strong>.</li>
+                  <li>Tại mục <strong>Quyền truy cập chung (General access)</strong>: Đổi từ <em>Hạn chế (Restricted)</em> sang <strong>Bất kỳ ai có đường liên kết (Anyone with the link)</strong> và đặt quyền là <strong>Người xem (Viewer)</strong>.</li>
+                  <li>Bấm <strong>Sao chép đường liên kết (Copy link)</strong>.</li>
+                  <li>Dán thẳng đường link vừa sao chép (hoặc Folder ID) vào ô <strong>Google Drive Link</strong> khi Tạo Album. Hệ thống sẽ tự động quét và hiển thị toàn bộ ảnh!</li>
                 </ol>
-              </section>
+              </div>
 
-              <section className="space-y-2.5">
-                <h3 className="font-bold text-zinc-900 text-sm flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] text-white">4</span>
-                  Lấy ID của Thư mục Google Drive
-                </h3>
-                <p>
-                  Mở thư mục Google Drive đó trên trình duyệt web, URL trên thanh địa chỉ sẽ có định dạng:
-                </p>
-                <div className="bg-zinc-100 p-3 rounded-lg font-mono text-[10px]">
-                  https://drive.google.com/drive/folders/<span className="bg-yellow-100 border border-yellow-300 font-bold px-1 text-zinc-900">1a2B3c4D_xYz_9876543210</span>
+              {/* Method 2: Service Account */}
+              <div className="border border-zinc-200 rounded-xl p-5 space-y-4">
+                <div className="flex items-center gap-2 text-zinc-900 font-bold text-sm">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-[10px] text-white">⚙</span>
+                  <span>Cách 2: Cấu hình Google Cloud Service Account (Dành cho tài khoản doanh nghiệp)</span>
                 </div>
-                <p>
-                  Sao chép chuỗi ký tự nằm sau <code>/folders/</code> (chuỗi bôi màu vàng trong ví dụ). Đó chính là <strong>Drive Folder ID</strong> bạn cần điền vào Form tạo Album trên bảng điều khiển quản trị.
+                <p className="text-zinc-600 text-xs">
+                  Cấu hình này phù hợp khi bạn muốn giữ thư mục ở chế độ riêng tư nội bộ hoặc sử dụng tính năng tạo thư mục con & sao chép ảnh trực tiếp trên Google Drive:
                 </p>
-              </section>
+
+                <section className="space-y-2">
+                  <h4 className="font-bold text-zinc-800 text-xs">1. Tạo Service Account trên Google Cloud</h4>
+                  <ol className="list-decimal pl-5 space-y-1 text-zinc-600 text-xs">
+                    <li>Truy cập <a href="https://console.cloud.google.com/" target="_blank" className="text-zinc-900 font-semibold underline">Google Cloud Console</a>.</li>
+                    <li>Vào mục <strong>APIs & Services &gt; Library</strong>, tìm <strong>Google Drive API</strong> và bấm <strong>Enable</strong>.</li>
+                    <li>Vào mục <strong>IAM & Admin &gt; Service Accounts</strong> &gt; bấm <strong>Create Service Account</strong>.</li>
+                    <li>Sau khi tạo, nhấn vào Service Account đó, chuyển sang tab <strong>Keys</strong> &gt; chọn <strong>Add Key &gt; Create new key (JSON)</strong>. Tải file JSON về máy.</li>
+                  </ol>
+                </section>
+
+                <section className="space-y-2">
+                  <h4 className="font-bold text-zinc-800 text-xs">2. Thêm Service Account Key vào file .env</h4>
+                  <p className="text-zinc-600 text-xs">
+                    Mở file JSON vừa tải, copy toàn bộ nội dung và gán vào biến <code>GOOGLE_SERVICE_ACCOUNT_KEY</code> trong file <code>.env</code>:
+                  </p>
+                  <div className="bg-zinc-900 text-zinc-200 p-3 rounded-lg font-mono text-[10px] break-all">
+                    {"GOOGLE_SERVICE_ACCOUNT_KEY='{\"type\": \"service_account\", \"project_id\": \"...\", \"private_key\": \"...\", \"client_email\": \"...\"}'"}
+                  </div>
+                </section>
+              </div>
 
             </div>
           </div>
@@ -1114,18 +1420,18 @@ export default function AdminPage() {
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5 flex items-center justify-between">
-                  <span>Google Drive Folder ID *</span>
-                  <span className="text-[9px] text-zinc-400 font-normal normal-case">
-                    (Thư mục cần được thiết lập chia sẻ công khai)
+                  <span>Google Drive Link hoặc Folder ID *</span>
+                  <span className="text-[9px] text-emerald-600 font-medium normal-case">
+                    (Hỗ trợ dán cả link chia sẻ công khai)
                   </span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Ví dụ: 1a2B3c4D_xYz_9876543210"
+                  placeholder="Dán link Drive (VD: https://drive.google.com/drive/folders/...) hoặc ID thư mục"
                   value={formData.driveFolderId}
                   onChange={(e) => setFormData({ ...formData, driveFolderId: e.target.value })}
-                  className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-xs outline-none focus:border-black"
+                  className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-xs outline-none focus:border-black font-mono text-[11px]"
                 />
               </div>
 
@@ -1154,6 +1460,28 @@ export default function AdminPage() {
                     className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-xs outline-none focus:border-black"
                   />
                 </div>
+              </div>
+
+              {/* Max Selections Limit */}
+              <div className="bg-zinc-50 border border-zinc-200/80 p-3.5 rounded-xl space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="maxSelections" className="block text-xs font-bold text-zinc-800">
+                    Giới hạn số lượng ảnh khách chọn (Max Selections)
+                  </label>
+                  <span className="text-[10px] text-zinc-400 font-medium">Bỏ trống hoặc 0 = Không giới hạn</span>
+                </div>
+                <input
+                  id="maxSelections"
+                  type="number"
+                  min="0"
+                  placeholder="VD: 30 (Khách chỉ được chọn tối đa 30 tấm)"
+                  value={formData.maxSelections}
+                  onChange={(e) => setFormData({ ...formData, maxSelections: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3.5 py-2 text-xs outline-none focus:border-black font-mono"
+                />
+                <p className="text-[10px] text-zinc-500">
+                  Khi khách chọn đủ số ảnh này, hệ thống sẽ thông báo và yêu cầu bỏ chọn bớt trước khi chọn thêm.
+                </p>
               </div>
 
               {/* Allow Downloads Checkbox Options */}
@@ -1384,6 +1712,134 @@ export default function AdminPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* CHANGE PASSWORD DIALOG MODAL */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 animate-in fade-in duration-200 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-900">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900">Đổi Mật Khẩu Quản Trị</h3>
+                  <p className="text-[10px] text-zinc-500">
+                    Tài khoản: <span className="font-semibold text-zinc-700">{adminUser || "admin"}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                  Mật khẩu hiện tại
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    required
+                    placeholder="Nhập mật khẩu hiện tại"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-2.5 pl-3.5 pr-10 text-xs text-zinc-900 outline-none transition-all focus:border-black focus:bg-white"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                    title={showCurrentPassword ? "Ẩn" : "Hiện"}
+                  >
+                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                  Mật khẩu mới
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    placeholder="Tối thiểu 6 ký tự"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-2.5 pl-3.5 pr-10 text-xs text-zinc-900 outline-none transition-all focus:border-black focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 text-zinc-400 hover:text-zinc-600 cursor-pointer"
+                    title={showNewPassword ? "Ẩn" : "Hiện"}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
+                  Xác nhận mật khẩu mới
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-2.5 px-3.5 text-xs text-zinc-900 outline-none transition-all focus:border-black focus:bg-white"
+                />
+              </div>
+
+              {passwordChangeError && (
+                <div className="rounded-xl bg-red-50 border border-red-200 p-2.5 text-center text-xs font-medium text-red-600">
+                  {passwordChangeError}
+                </div>
+              )}
+
+              {passwordChangeSuccess && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-center text-xs font-semibold text-emerald-700 flex items-center justify-center gap-1.5">
+                  <Check className="h-4 w-4" />
+                  <span>{passwordChangeSuccess}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="flex-1 rounded-xl bg-zinc-950 py-2.5 text-xs font-bold text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm"
+                >
+                  {changingPassword ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Đang lưu...</span>
+                    </>
+                  ) : (
+                    <span>Lưu Mật Khẩu</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

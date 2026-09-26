@@ -7,6 +7,8 @@ export interface Album {
   expiresAt?: string | null;
   logoUrl?: string | null;
   bannerUrl?: string | null;
+  allowDownloads?: boolean;
+  maxSelections?: number | null;
   createdAt: string;
   updatedAt: string;
 }
