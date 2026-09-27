@@ -101,11 +101,11 @@ export default function Home() {
           <div className="flex items-center gap-3 mx-auto sm:mx-0">
             <img
               src="/logo.jpg"
-              alt="Tô Studio"
+              alt="To Studio"
               className="h-10 w-10 rounded-full object-cover border border-white/20 shadow-md bg-white"
             />
             <div className="text-left">
-              <span className="text-base font-bold tracking-wider text-white font-sans block">TÔ STUDIO</span>
+              <span className="text-base font-bold tracking-wider text-white font-sans block">TO STUDIO</span>
               <span className="text-[10px] tracking-widest text-zinc-400 font-sans block uppercase">Hệ Thống Lọc Ảnh</span>
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[11px] font-bold tracking-widest text-zinc-400 uppercase">
-              Bộ Sưu Tập Nổi Bật - Tô Studio
+              Bộ Sưu Tập Nổi Bật - To Studio
             </span>
           </div>
           <a
@@ -254,7 +254,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-white/5 bg-zinc-950 px-6 py-6 text-center text-[9px] tracking-widest text-zinc-500 uppercase">
-        <p>© {new Date().getFullYear()} Tô Studio - Lọc Ảnh. Thiết kế cao cấp dành cho Studio & Khách hàng.</p>
+        <p>© {new Date().getFullYear()} To Studio - Lọc Ảnh. Thiết kế cao cấp dành cho Studio & Khách hàng.</p>
       </footer>
     </div>
   );

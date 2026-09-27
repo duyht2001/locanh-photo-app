@@ -265,7 +265,7 @@ export default function AlbumGuestPage({ params }: PageProps) {
             {album.logoUrl ? (
               <img src={album.logoUrl} alt={album.title} className="h-full w-full object-cover" />
             ) : (
-              <img src="/logo.jpg" alt="Tô Studio" className="h-full w-full object-cover" />
+              <img src="/logo.jpg" alt="To Studio" className="h-full w-full object-cover" />
             )}
           </div>
 
@@ -276,7 +276,7 @@ export default function AlbumGuestPage({ params }: PageProps) {
 
           {/* Status details */}
           <div className="mt-2 flex items-center gap-3 text-xs text-zinc-400">
-            <span className="font-medium text-zinc-600">Tô Studio</span>
+            <span className="font-medium text-zinc-600">To Studio</span>
             <span className="h-1 w-1 rounded-full bg-zinc-300" />
             <span>Album ảnh trực tuyến</span>
             {album.expiresAt && (

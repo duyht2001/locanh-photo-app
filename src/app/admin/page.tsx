@@ -665,10 +665,10 @@ export default function AdminPage() {
           {/* Logo & Header */}
           <div className="text-center space-y-3">
             <div className="mx-auto h-20 w-20 rounded-full overflow-hidden border-2 border-white/20 p-0.5 shadow-2xl bg-white flex items-center justify-center">
-              <img src="/logo.jpg" alt="Tô Studio" className="h-full w-full object-cover rounded-full" />
+              <img src="/logo.jpg" alt="To Studio" className="h-full w-full object-cover rounded-full" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-wider text-white font-serif uppercase">TÔ STUDIO</h1>
+              <h1 className="text-xl font-bold tracking-wider text-white font-serif uppercase">TO STUDIO</h1>
               <p className="text-[11px] text-zinc-400 mt-1 tracking-widest uppercase font-sans">Đăng Nhập Quản Trị Hệ Thống</p>
             </div>
           </div>
@@ -778,11 +778,11 @@ export default function AdminPage() {
               <div className="flex items-center gap-2.5">
                 <img
                   src="/logo.jpg"
-                  alt="Tô Studio"
+                  alt="To Studio"
                   className="h-8 w-8 rounded-full object-cover border border-zinc-200 shadow-xs"
                 />
                 <div>
-                  <span className="text-sm font-bold tracking-wider text-zinc-950 block font-serif">TÔ STUDIO</span>
+                  <span className="text-sm font-bold tracking-wider text-zinc-950 block font-serif">TO STUDIO</span>
                   <span className="text-[9px] font-semibold tracking-widest text-zinc-400 block uppercase">Trang Quản Trị</span>
                 </div>
               </div>
