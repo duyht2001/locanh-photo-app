@@ -33,27 +33,35 @@ export async function GET(request: NextRequest) {
     if (aData) supaAlbum = aData;
 
     if (supaAlbum) {
-      const { data: supaSels } = await supabase
+      let { data: supaSels, error: selsErr } = await supabase
         .from("Selection")
         .select("*")
         .eq("albumId", supaAlbum.id)
         .order("updatedAt", { ascending: false });
 
-      if (supaSels && supaSels.length > 0) {
-        const groupedSelections: { [sessionId: string]: typeof supaSels } = {};
-        for (const sel of supaSels) {
-          if (!groupedSelections[sel.clientSessionId]) {
-            groupedSelections[sel.clientSessionId] = [];
-          }
-          groupedSelections[sel.clientSessionId].push(sel);
-        }
-
-        return NextResponse.json({
-          album: supaAlbum,
-          selections: supaSels,
-          groupedSelections,
-        });
+      if (selsErr) {
+        console.warn("Supabase fetch selections error:", selsErr);
       }
+
+      supaSels = supaSels || [];
+
+      // Check if local mockStore has selections to merge
+      const { selections: localSels } = getGroupedSelectionsForAlbum(supaAlbum.slug, supaAlbum.id);
+      const allSels = supaSels.length > 0 ? supaSels : localSels;
+
+      const groupedSelections: { [sessionId: string]: typeof allSels } = {};
+      for (const sel of allSels) {
+        if (!groupedSelections[sel.clientSessionId]) {
+          groupedSelections[sel.clientSessionId] = [];
+        }
+        groupedSelections[sel.clientSessionId].push(sel);
+      }
+
+      return NextResponse.json({
+        album: supaAlbum,
+        selections: allSels,
+        groupedSelections,
+      });
     }
   } catch (error: any) {
     console.warn("Supabase selections fetch error:", error);

@@ -41,6 +41,26 @@ export async function POST(
 
     if (!album) {
       album = getAlbumBySlugOrId(slug);
+      if (album) {
+        // Ensure album exists in Supabase so foreign key constraints succeed
+        try {
+          await supabase.from("Album").upsert({
+            id: album.id,
+            title: album.title,
+            slug: album.slug,
+            driveFolderId: album.driveFolderId,
+            password: album.password || null,
+            expiresAt: album.expiresAt || null,
+            logoUrl: album.logoUrl || null,
+            bannerUrl: album.bannerUrl || null,
+            allowDownloads: album.allowDownloads !== undefined ? album.allowDownloads : true,
+            createdAt: album.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn("Failed to auto-upsert album to Supabase:", e);
+        }
+      }
     }
 
     if (!album) {
@@ -66,16 +86,27 @@ export async function POST(
           .match({ albumId: album.id, clientSessionId: sessionId, photoId });
       } else {
         const now = new Date().toISOString();
-        await supabase.from("Selection").upsert({
+        const selId = `sel_${album.id}_${sessionId}_${photoId}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+
+        const payload = {
+          id: selId,
           albumId: album.id,
           clientSessionId: sessionId,
           photoId: photoId,
           photoName: photoName,
-          isFavorite: localRes.selection.isFavorite,
-          isTicked: localRes.selection.isTicked,
-          colorFlag: localRes.selection.colorFlag,
+          isFavorite: !!localRes.selection.isFavorite,
+          isTicked: !!localRes.selection.isTicked,
+          colorFlag: localRes.selection.colorFlag || null,
           updatedAt: now,
-        });
+        };
+
+        const { error: supaErr } = await supabase
+          .from("Selection")
+          .upsert(payload, { onConflict: "albumId,clientSessionId,photoId" });
+
+        if (supaErr) {
+          console.error("[Select] Supabase selection upsert error:", supaErr);
+        }
       }
     } catch (supaErr) {
       console.warn("Supabase selection sync error (saved locally):", supaErr);
