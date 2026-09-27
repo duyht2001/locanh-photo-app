@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     if (aData) supaAlbum = aData;
 
     if (supaAlbum) {
-      let { data: supaSels, error: selsErr } = await supabase
+      const { data: supaSelsRaw, error: selsErr } = await supabase
         .from("Selection")
         .select("*")
         .eq("albumId", supaAlbum.id)
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         console.warn("Supabase fetch selections error:", selsErr);
       }
 
-      supaSels = supaSels || [];
+      const supaSels = supaSelsRaw || [];
 
       // Check if local mockStore has selections to merge
       const { selections: localSels } = getGroupedSelectionsForAlbum(supaAlbum.slug, supaAlbum.id);
