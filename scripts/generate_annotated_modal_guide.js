@@ -202,9 +202,9 @@ async function main() {
       <text x="30" y="30" class="font-sans badge-text">6</text>
       <text x="56" y="30" class="font-sans card-title" fill="#4338ca">LOGO &amp; BANNER (Tùy chọn)</text>
       <text x="20" y="60" class="font-sans card-desc">
-        <tspan x="20" dy="0">• <tspan font-weight="700">Studio Logo URL:</tspan> Link logo riêng (nếu muốn đổi).</tspan>
-        <tspan x="20" dy="18">• <tspan font-weight="700">Banner Cover URL:</tspan> Link ảnh bìa lớn đầu trang</tspan>
-        <tspan x="20" dy="18">  giúp album trông sang trọng, chuyên nghiệp hơn.</tspan>
+        <tspan x="20" dy="0">• <tspan font-weight="700">Banner Cover URL:</tspan> Tự động cài sẵn banner To Studio</tspan>
+        <tspan x="20" dy="18">  mặc định cho mọi album mới (hoặc đổi ảnh tùy ý).</tspan>
+        <tspan x="20" dy="18">• <tspan font-weight="700">Studio Logo URL:</tspan> Link logo riêng (nếu muốn đổi).</tspan>
       </text>
     </g>
     <!-- Arrow 6: From left of Card 6 to t6 -->
