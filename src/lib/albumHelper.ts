@@ -39,7 +39,12 @@ export function extractMaxSelections(album: any, localFallback?: any): number | 
 export function cleanBannerUrl(bannerUrl?: string | null): string | null {
   if (!bannerUrl) return null;
   if (bannerUrl.startsWith("__ms__")) return null;
-  const cleaned = bannerUrl.replace(/#__ms__\d+$/, "").replace(/__ms__\d+$/, "");
+  const cleaned = bannerUrl.replace(/#__ms__\d+$/, "").replace(/__ms__\d+$/, "").trim();
+  if (!cleaned) return null;
+  // If user typed 'paner.png' or '/paner.png' or 'panner' or 'banner'
+  if (/^\/?p+an+er(\.png|\.jpg|\.jpeg)?$/i.test(cleaned) || /^\/?banner(\.png|\.jpg|\.jpeg)?$/i.test(cleaned)) {
+    return "/banner.png";
+  }
   return cleaned || null;
 }
 

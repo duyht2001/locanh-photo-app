@@ -232,6 +232,12 @@ export default function AlbumGuestPage({ params }: PageProps) {
           src={album.bannerUrl || "/banner.png"}
           alt={album.title}
           className="h-full w-full object-cover opacity-90"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            if (!target.src.endsWith("/banner.png")) {
+              target.src = "/banner.png";
+            }
+          }}
         />
         
         {/* Overlay gradient */}
