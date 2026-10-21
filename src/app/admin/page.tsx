@@ -68,7 +68,7 @@ export default function AdminPage() {
     password: "",
     expiresAt: "",
     logoUrl: "",
-    bannerUrl: "",
+    bannerUrl: "/banner.png",
     allowDownloads: true,
     maxSelections: "",
   });
@@ -508,7 +508,7 @@ export default function AdminPage() {
       password: "",
       expiresAt: "",
       logoUrl: "",
-      bannerUrl: "",
+      bannerUrl: "/banner.png",
       allowDownloads: true,
       maxSelections: "",
     });
@@ -543,6 +543,7 @@ export default function AdminPage() {
     const method = isEdit ? "PUT" : "POST";
     const formattedPayload = {
       ...formData,
+      bannerUrl: formData.bannerUrl && formData.bannerUrl.trim() !== "" ? formData.bannerUrl.trim() : "/banner.png",
       maxSelections: formData.maxSelections ? parseInt(formData.maxSelections, 10) : null,
     };
     const payload = isEdit ? { ...formattedPayload, id: editingAlbum.id } : formattedPayload;
@@ -1513,16 +1514,37 @@ export default function AdminPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                    Banner Cover URL (Tùy chọn)
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                      Banner Cover URL
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, bannerUrl: "/banner.png" })}
+                      className="text-[9px] text-zinc-500 hover:text-black font-semibold underline cursor-pointer"
+                    >
+                      Dùng banner To Studio
+                    </button>
+                  </div>
                   <input
                     type="text"
-                    placeholder="https://example.com/banner.png"
+                    placeholder="/banner.png (Mặc định To Studio)"
                     value={formData.bannerUrl}
                     onChange={(e) => setFormData({ ...formData, bannerUrl: e.target.value })}
                     className="w-full rounded-lg border border-zinc-200 px-3.5 py-2 text-xs outline-none focus:border-black"
                   />
+                  {formData.bannerUrl && (
+                    <div className="mt-2 relative h-12 w-full rounded-lg overflow-hidden border border-zinc-200 bg-zinc-900 group">
+                      <img
+                        src={formData.bannerUrl}
+                        alt="Banner preview"
+                        className="h-full w-full object-cover opacity-90"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[10px] text-white font-medium">Xem trước Banner To Studio</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

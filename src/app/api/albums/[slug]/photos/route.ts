@@ -141,7 +141,7 @@ export async function GET(
       title: album.title,
       expiresAt: album.expiresAt,
       logoUrl: album.logoUrl || "/logo.jpg",
-      bannerUrl: cleanBannerUrl(album.bannerUrl),
+      bannerUrl: cleanBannerUrl(album.bannerUrl) || "/banner.png",
       allowDownloads: album.allowDownloads,
       maxSelections: maxSelections,
       isPasswordProtected: !!album.password,

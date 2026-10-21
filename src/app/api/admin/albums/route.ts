@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
         const maxSel = extractMaxSelections(a, local);
         return {
           ...a,
-          bannerUrl: cleanBannerUrl(a.bannerUrl),
+          bannerUrl: cleanBannerUrl(a.bannerUrl) || "/banner.png",
           maxSelections: maxSel,
           _count: {
             selections: Array.isArray(a.selections) ? a.selections.length : 0,
@@ -143,7 +143,12 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const albumId = `album_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    const encodedBanner = encodeBannerWithMaxSelections(bannerUrl, parsedMaxSelections);
+    const finalBannerUrl =
+      bannerUrl && typeof bannerUrl === "string" && bannerUrl.trim() !== ""
+        ? bannerUrl.trim()
+        : "/banner.png";
+
+    const encodedBanner = encodeBannerWithMaxSelections(finalBannerUrl, parsedMaxSelections);
 
     const albumData: any = {
       id: albumId,
@@ -215,7 +220,7 @@ export async function POST(request: NextRequest) {
     if (supaInserted) {
       return NextResponse.json({
         ...supaInserted,
-        bannerUrl: cleanBannerUrl(supaInserted.bannerUrl),
+        bannerUrl: cleanBannerUrl(supaInserted.bannerUrl) || "/banner.png",
         maxSelections: parsedMaxSelections,
       }, { status: 201 });
     }
@@ -223,13 +228,13 @@ export async function POST(request: NextRequest) {
     if (localAlbum) {
       return NextResponse.json({
         ...localAlbum,
-        bannerUrl: cleanBannerUrl(localAlbum.bannerUrl),
+        bannerUrl: cleanBannerUrl(localAlbum.bannerUrl) || "/banner.png",
       }, { status: 201 });
     }
 
     return NextResponse.json({
       ...albumData,
-      bannerUrl: cleanBannerUrl(albumData.bannerUrl),
+      bannerUrl: cleanBannerUrl(albumData.bannerUrl) || "/banner.png",
     }, { status: 201 });
   } catch (error: unknown) {
     console.error("POST album error:", error);

@@ -228,18 +228,11 @@ export default function AlbumGuestPage({ params }: PageProps) {
       
       {/* Hero Banner Section */}
       <div className="relative h-64 sm:h-[420px] w-full overflow-hidden bg-zinc-900">
-        {album.bannerUrl ? (
-          <img
-            src={album.bannerUrl}
-            alt={album.title}
-            className="h-full w-full object-cover opacity-85"
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center bg-zinc-50 border-b border-zinc-100">
-            <ImageIcon className="h-10 w-10 text-zinc-300 stroke-[1.2]" />
-            <span className="mt-2 text-xs font-medium text-zinc-400">Không có banner</span>
-          </div>
-        )}
+        <img
+          src={album.bannerUrl || "/banner.png"}
+          alt={album.title}
+          className="h-full w-full object-cover opacity-90"
+        />
         
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
