@@ -19,10 +19,9 @@ export const metadata: Metadata = {
   keywords: ["To Studio", "To Studio lọc ảnh", "chọn lọc ảnh", "chọn ảnh online", "lọc ảnh google drive", "nhiếp ảnh"],
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "32x32" },
       { url: "/icon.png", sizes: "48x48", type: "image/png" },
     ],
-    shortcut: "/favicon.ico",
+    shortcut: "/icon.png",
     apple: "/apple-icon.png",
   },
 };
